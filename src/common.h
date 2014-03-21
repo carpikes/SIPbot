@@ -15,6 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ * @file common.h
+ */
+
 #ifndef COMMON_H
 #define COMMON_H
 
@@ -34,8 +38,4 @@
 
 #include "config.h"
 
-
-#define REG_TIMEOUT 3600
-
-#define WAVFILE "music.wav"
 #endif

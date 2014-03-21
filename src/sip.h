@@ -15,10 +15,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ * @file sip.h
+ * @brief call structure and sip.c definitions
+ */
+
 #ifndef SIP_H
 #define SIP_H
 
 #include "common.h"
+#include "log.h"
 
 enum e_calls{
     CALL_RINGING, 
@@ -27,18 +33,39 @@ enum e_calls{
 };
 
 struct call {
-    int cid, tid, did; /* did is used as call identifier*/
 
+    /** @brief Call id */
+    int cid;
+    /** @brief Transaction id */
+    int tid;
+    /** @brief Dialog id */
+    int did;
+
+    /** @brief Caller's phone number */
     char* caller;
+    
+    /** @brief RTP server ip address */
     char* ip;
+
+    /** @brief RTP server port */
     int port;
+
+    /** @brief Call status */
     int status;
+
+    /** @brief Ringing timer */
     time_t ringing_timer;
 
+    /** @brief oRTP session data */
     RtpSession* r_session;
+
+    /** @brief Song file handler */
     FILE* song;
+
+    /** @brief RTP call packet count? */
     int user_ts;
 
+    /** @brief Pointer to the next call */
     struct call* next;
 }; 
 

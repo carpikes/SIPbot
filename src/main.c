@@ -15,6 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ * @file main.c
+ * @brief Main
+ */
 #include "common.h"
 #include "sip.h"
 
@@ -28,32 +32,36 @@ void signal_handler(int s);
 void signal_init();
 void signal_halt();
 
+/**
+ *  Entry point
+ */
 int main (int argc, char **argv) {
-	
-    printf("Starting up..\n");
 
+    log_debug("MAIN", "Starting up");
+
+    
 	ortp_init();
 	ortp_scheduler_init();
     ortp_set_log_level_mask(ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
 
     if(sip_init() == -1) {
-        fprintf(stderr, "[ERROR] SIP_INIT returned -1\n");
+        log_err("MAIN", "SIP_INIT returned -1");
         exit(1);
     }
 	
 	if(sip_register(REG_INFO, REG_HOST, REG_USER, REG_PASS) == -1) {
-		fprintf(stderr, "[ERROR] SIP_REGISTER returned -1\n");
+		log_err("MAIN", "SIP_REGISTER returned -1");
 		exit(1);
 	}
 
     signal_init();	
-    printf("[DEBUG] Listening...\n");
+    log_debug("MAIN", "Listening");
     while(!stop_event) {
         call_update();
         sip_update(my_ip);
     }
 
-    printf("[DEBUG] Exiting...\n");
+    log_debug("MAIN", "Exiting");
     call_freeall();
     sip_exit();
 	ortp_exit();
@@ -62,6 +70,14 @@ int main (int argc, char **argv) {
     return 0;
 }
 
+/**
+ * Obtain your external IP Address
+ * (Actually, a useless function)
+ * 
+ * @param buf Output buffer
+ * @param max_len Output buffer length
+ * @return If this function succeded, return value is 1. Otherwise it is 0
+ */
 int get_my_ip(char *buf, int max_len) {
     static char send_buf[] =   
         "GET / HTTP/1.1\r\n"
@@ -77,7 +93,7 @@ int get_my_ip(char *buf, int max_len) {
 
 	host = gethostbyname("checkip.dyndns.org");
 	if(host == NULL) {
-        printf("Invalid host\n");
+        log_err("GETIP", "Invalid host");
 		return 0;
     }
 
@@ -89,12 +105,12 @@ int get_my_ip(char *buf, int max_len) {
 
 	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if(!s) {
-        printf("Cannot create socket.\n");
+        log_err("GETIP", "Cannot create socket");
 		return 0;
     }
 
 	if( connect(s, (struct sockaddr *) &params, sizeof(params)) < 0) { 
-        printf("Cannot connect\n");
+        log_err("GETIP","Cannot connect");
         close(s);
 		return 0;
     }
@@ -104,7 +120,7 @@ int get_my_ip(char *buf, int max_len) {
 	n = recv(s, recv_buf, 8192-1, 0);
 	close(s);
 	if(n==-1) {
-        printf("Recv error\n");
+        log_err("GETIP", "Recv error");
 		return 0;
     }
 

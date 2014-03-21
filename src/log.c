@@ -15,14 +15,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/** 
+ * @file log.c
+ * @brief Logging functions
+ */
 #include "log.h"
 
-void log_err(const char* str, ...) {
+void log_debug(const char* tag, const char* str, ...) {
     va_list ap;
     if( !str ) return;
 
+    fprintf(stdout, "[DEBUG] %s: ", tag);
     va_start(ap, str);
-    vprintf( str, ap );
-    printf( "\n" );
+    vfprintf(stdout, str, ap );
+    fprintf(stdout, "\n" );
+    va_end(ap);
+}
+void log_err(const char* tag, const char* str, ...) {
+    va_list ap;
+    if( !str ) return;
+
+    fprintf(stderr, "[ERROR] %s: ", tag);
+    va_start(ap, str);
+    vfprintf(stderr, str, ap );
+    fprintf(stderr, "\n" );
     va_end(ap);
 }

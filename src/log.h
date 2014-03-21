@@ -15,13 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ * @file log.h
+ * @brief Logging headers
+ */
 #ifndef LOG_H
 #define LOG_H
 #include "common.h"
 
-#define     LOG_ERROR   0
-#define     LOG_INFO    1
-#define     LOG_DEBUG   2
-
-void log_err(const char*, ...);
+void log_debug(const char*, const char*, ...);
+void log_err(const char*, const char*, ...);
 #endif

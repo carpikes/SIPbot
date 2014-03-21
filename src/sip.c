@@ -15,6 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ * @file sip.c
+ * @brief SIP and Call Management functions
+ */
+
 #include "sip.h"
 #include "sdp.h"
 
@@ -25,12 +30,20 @@ static time_t           reg_timer = 0;
 
 call_t* call_list;
 
+/**
+ * This function frees osip2 used memory
+ */
 void sip_exit() {
 	sip_reg_delete();
     eXosip_quit(ctx);
     free(ctx);
 }
 
+/**
+ * This function handles a call and send a wave packet through the net
+ *
+ * @param call call data
+ */
 void call_stream(call_t* call) {
     char buf[500];
     int i;
@@ -40,11 +53,16 @@ void call_stream(call_t* call) {
         rtp_session_send_with_ts(call->r_session, (uint8_t*) buf, i, call->user_ts);
         call->user_ts += i;
     } else {
-        printf("[DEBUG] song finished\n");
+        log_debug("CALL_STREAM", "Song finished");
         call->status=CALL_CLOSED;
     }
 }
 
+/**
+ * This function closes the call and frees used memory.
+ *
+ * @param call call data to free
+ */
 call_t* call_free(call_t* call) {
     call_t* next = NULL;
     if(call->caller)
@@ -64,11 +82,17 @@ call_t* call_free(call_t* call) {
     return next;
 }
 
+/**
+ * This function is called when SIPbot is closing, it frees all calls
+ */
 void call_freeall() {
     while(call_list != NULL)
        call_list = call_free(call_list);
 }
 
+/**
+ * Cycles through all calls and update their status
+ */
 void call_update() {
     int update_list = 1;
     time_t cur_time = time(NULL);
@@ -88,7 +112,7 @@ void call_update() {
                 call_stream(call);
                 break;
             case CALL_CLOSED:
-                printf("[CALL_CLOSED] Freeing memory\n");
+                log_debug("CALL_CLOSED", "Freeing memory");
                
                 if(call_prec == NULL)
                     call_list = call->next;
@@ -107,6 +131,9 @@ void call_update() {
     }
 }
 
+/**
+ * This function handles oSIP messages
+ */
 void sip_update() {
     sdp_message_t* sdp_packet;
     sdp_connection_t* sdp_audio_conn;
@@ -117,7 +144,7 @@ void sip_update() {
     time_t cur_time = time(NULL);
 
 	if(reg_timer > 0 && cur_time - reg_timer > REG_TIMEOUT) {
-		printf("[DEBUG] Updating registration\n");
+		log_debug("SIP_UPDATE", "Updating registration");
 		sip_reg_update();
 	}
 
@@ -131,17 +158,21 @@ void sip_update() {
 
     switch(evt->type) {
         case EXOSIP_REGISTRATION_FAILURE:
-            printf("[DEBUG] Reg fail\n");
+            log_debug("SIP_UPDATE", "Reg fail");
             break;
         case EXOSIP_REGISTRATION_SUCCESS:
             reg_timer = time(NULL);
-            printf("[DEBUG] Client registered\n");
+            log_debug("SIP_UPDATE", "Client registered");
             break;
         case EXOSIP_CALL_INVITE:
-            printf("[CALL_INVITE] FROM %s\n", evt->request->from->displayname);
+            log_debug("SIP_UPDATE", "Received CALL_INVITE from %s", 
+                        evt->request->from->displayname);
             sdp_packet = eXosip_get_remote_sdp(ctx, evt->did);
-            if(sdp_packet == NULL) 
+
+            if(sdp_packet == NULL) {
+                log_err("SIP_UPDATE", "I've received a CALL_INVITE without SDP infos!");
                 break;
+            }
             
             sdp_audio_conn = eXosip_get_audio_connection(sdp_packet);
             sdp_audio_media = eXosip_get_audio_media(sdp_packet);
@@ -151,7 +182,7 @@ void sip_update() {
                 
                 call = (call_t*) calloc(1, sizeof(call_t));
                 if(call == NULL) {
-                    fprintf(stderr, "[CALL_INVITE] Out of memory. Exiting.\n");
+                    log_err("SIP_UPDATE", "Out of memory. Exiting.");
                     exit(-1);
                 }
 
@@ -172,7 +203,7 @@ void sip_update() {
                 call->song = fopen(WAVFILE, "rb");
 
                 if(call->song == NULL) {
-                    fprintf(stderr, "[CALL_SONG] Cannot open file.\n");
+                    log_debug("SIP_UPDATE", "Cannot open " WAVFILE);
                     exit(-1);
                 }
 
@@ -193,7 +224,7 @@ void sip_update() {
             sdp_message_free(sdp_packet);
             break;
         case EXOSIP_CALL_ACK:
-            printf("[CALL_ACK] CID: %d\n", evt->cid);
+            log_debug("SIP_UPDATE", "Call %d got CALL_ACK, starting stream...", evt->cid);
             call = call_list;
             while(call != NULL) {
                 if(call->cid == evt->cid) {
@@ -203,7 +234,7 @@ void sip_update() {
             }
             break;
         case EXOSIP_CALL_CLOSED:
-            printf("[CALL_CLOSED] CID: %d\n", evt->cid);
+            log_debug("SIP_UPDATE", "Call %d closed", evt->cid);
             call = call_list;
             while(call != NULL) {
                 if(call->cid == evt->cid) {
@@ -213,13 +244,16 @@ void sip_update() {
             }
             break;
         default:
-            printf("[DEBUG] Event %d\n", evt->type);
+            log_debug("SIP_UPDATE", "Got unknown event %d. Ignoring.", evt->type);
             break;
     }
 
     eXosip_event_free(evt);
 }
 
+/**
+ * This function initializes libeXosip2
+ */
 int sip_init() {
     int i, val;
 
@@ -234,7 +268,7 @@ int sip_init() {
     i = eXosip_listen_addr(ctx, IPPROTO_UDP, NULL, port, AF_INET, 0);
     if(i) {
         eXosip_quit(ctx);
-        fprintf(stderr, "Could not init tr layer\n");
+        log_err("SIP_INIT", "Could not listen. Another client is opened?");
         return -1;
     }
 
@@ -245,6 +279,15 @@ int sip_init() {
     return 1;
 }
 
+/**
+ * This function tries to register this client with VoIP provider
+ *
+ * @param account SIP account
+ * @param host SIP host
+ * @param login SIP username
+ * @param passwd SIP password
+ * @return A number >=0 if this packet was built and sent
+ */
 int sip_register(char* account, char* host, char* login, char* passwd) {
     osip_message_t* reg = NULL;
     int i;
@@ -269,6 +312,11 @@ int sip_register(char* account, char* host, char* login, char* passwd) {
     return i;
 }
 
+/**
+ * This function updates client registration with VoIP provider
+ *
+ * @return 1 if there are no errors
+ */
 int sip_reg_update() {
 	osip_message_t* reg = NULL;
 	int i;
@@ -277,22 +325,24 @@ int sip_reg_update() {
 		i = eXosip_register_build_register(ctx, register_id, REG_TIMEOUT, &reg);
 		if(i<0) {
 			eXosip_unlock(ctx);
-			return -1;
+			return 0;
 		}
 
 		eXosip_register_send_register(ctx, register_id, reg);
 		eXosip_unlock(ctx);
 	}
-	return 0;
+	return 1;
 }
-
+/**
+ * Cancels a provider registration
+ */
 int sip_reg_delete() {
     osip_message_t *reg = NULL;
     int i;
 
     if(register_id != 0) {
         eXosip_lock (ctx);
-		printf("[DEBUG] Unregistering..\n");
+		log_debug("SIP_REG_DELETE", "Unregistering");
         i = eXosip_register_build_register (ctx, register_id, 0, &reg);
         if (i < 0) {
             eXosip_unlock (ctx);
@@ -306,9 +356,15 @@ int sip_reg_delete() {
     return 0;
 }
 
+/**
+ * This function is called when SIPbot answers a call
+ *
+ * @param call call info
+ * @return 1 if call is answered successfully
+ */
 int sip_answer_call(call_t* call) {
+    int retval=0,i;
     char localip[128] = { 0 };
-	int i;
 	osip_message_t* answer = NULL;
 
     eXosip_guess_localip(ctx, AF_INET, localip, 127);
@@ -323,7 +379,7 @@ int sip_answer_call(call_t* call) {
 		rtp_session_set_blocking_mode(call->r_session, 1);
 		rtp_session_set_scheduling_mode(call->r_session, 1);
 		rtp_session_set_connected_mode(call->r_session, 1);
-		rtp_session_set_payload_type(call->r_session, 0); /* 0 = pcmu8000??*/
+		rtp_session_set_payload_type(call->r_session, 0); /* TODO: 0 = pcmu8000??*/
 
 		rtp_session_set_local_addr(call->r_session, localip, 10500, 0);
 		rtp_session_set_remote_addr(call->r_session, call->ip, call->port);
@@ -334,10 +390,12 @@ int sip_answer_call(call_t* call) {
 			osip_message_free (answer);
 			eXosip_call_send_answer (ctx, call->tid, 415, NULL);
 		}
-		else
+		else {
 			eXosip_call_send_answer (ctx, call->tid, 200, answer);
+            retval = 1;
+        }
 	}
 	eXosip_unlock (ctx);
-    return 1;
+    return retval;
 }
 

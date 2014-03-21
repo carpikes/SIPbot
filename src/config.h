@@ -15,12 +15,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ * @file config.h
+ * @brief Configuration file
+ */
+
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/** @brief Registration info */
 #define REG_INFO "sip:USERID@sip.messagenet.it"
+
+/** @brief Registrar server */
 #define REG_HOST "sip:sip.messagenet.it:5061"
+
+/** @brief Your username */
 #define REG_USER "USERID"
+
+/** @brief Your password */
 #define REG_PASS "PASSWORD"
 
+/** @brief Client registration timeout */
+#define REG_TIMEOUT 3600
+
+/** @brief Wave file */
+#define WAVFILE "music.wav"
 #endif
