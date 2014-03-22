@@ -48,7 +48,8 @@ void call_stream(call_t* call) {
     char buf[500];
     int i;
     
-    i = fread(buf, 1, 500, call->song);
+    i = waveread(call->song, buf, 500);
+/*    i = fread(buf, 1, 500, call->song);*/
     if(i>0) {
         rtp_session_send_with_ts(call->r_session, (uint8_t*) buf, i, call->user_ts);
         call->user_ts += i;
@@ -74,7 +75,8 @@ call_t* call_free(call_t* call) {
         rtp_session_destroy(call->r_session);
 
     eXosip_call_terminate(ctx, call->cid, call->did);
-    fclose(call->song);
+ /*   fclose(call->song);*/
+    waveclose(call->song);
 
     next = call->next;
     free(call);
@@ -200,7 +202,7 @@ void sip_update() {
 
                 /* prepare test song file */
                 call->user_ts = 0;
-                call->song = fopen(WAVFILE, "rb");
+                call->song = waveopen(WAVFILE);
 
                 if(call->song == NULL) {
                     log_debug("SIP_UPDATE", "Cannot open " WAVFILE);

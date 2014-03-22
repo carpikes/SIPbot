@@ -25,6 +25,7 @@
 
 #include "common.h"
 #include "log.h"
+#include "law.h"
 
 enum e_calls{
     CALL_RINGING, 
@@ -60,7 +61,7 @@ struct call {
     RtpSession* r_session;
 
     /** @brief Song file handler */
-    FILE* song;
+    wavfile_t* song;
 
     /** @brief RTP call packet count? */
     int user_ts;
