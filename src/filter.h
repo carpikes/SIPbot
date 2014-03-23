@@ -23,7 +23,9 @@
 #ifndef FILTER_H
 #define FILTER_H
 
-void        lowpass (int16_t *, int16_t *, int, float, float);
-void        highpass(int16_t *, int16_t *, int, float, float);
+#include "common.h"
+
+void        lowpass (int16_t*, int16_t*, int, float, float);
+void        highpass(int16_t*, int16_t*, int, float, float);
 
 #endif

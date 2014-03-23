@@ -19,7 +19,7 @@
  * @file filter.c
  * @brief Audio Filters
  */
-
+#include "filter.h"
 /* Thanks to Wikipedia for these formulas */
 
 /**

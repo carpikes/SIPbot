@@ -17,7 +17,7 @@
 
 /**
  * @file law.c
- * @brief muLaw encoder
+ * @brief muLaw Encoder
  */
 
 #include "law.h"
@@ -188,7 +188,7 @@ int waveread(wavfile_t* wavfile, char* output, int len) {
      *  val = 0;
      *  for(j=0;j<BT_P_S;j++)
      */
-        val += f_out[i*BT_P_S+j*0];
+        val += f_out[i*(wavfile->header.sample_rate/8000)+j*0];
         output[i] = linear2ulaw(val);
     }
 
