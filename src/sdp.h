@@ -23,6 +23,6 @@
 
 #include "common.h"
 
-int sdp_complete_200ok(struct eXosip_t*, int, osip_message_t*, char*, int);
+int sdp_complete_200ok(struct eXosip_t* ctx, int did, osip_message_t* answer, char* ip, int port);
 
 #endif

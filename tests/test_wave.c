@@ -22,6 +22,7 @@
 
 #include "../src/common.h"
 #include "../src/law.h"
+#include "../src/filter.h"
 
 int main(int argc, char *argv[]) {
     wavfile_t* wav;

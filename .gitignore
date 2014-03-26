@@ -16,6 +16,7 @@
 *.exe
 *.out
 *.app
-sipbot
 
+sipbot
+/test_*
 docs/

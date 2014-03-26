@@ -28,7 +28,6 @@ static int              register_id = NULL;
 static struct eXosip_t* ctx = NULL;
 static time_t           reg_timer = 0;
 
-call_t* call_list;
 
 /**
  * This function frees osip2 used memory
@@ -38,101 +37,6 @@ void sip_exit() {
     eXosip_quit(ctx);
     free(ctx);
 }
-
-/**
- * This function handles a call and send a wave packet through the net
- *
- * @param call call data
- */
-void call_stream(call_t* call) {
-    char buf[500];
-    int i;
-    
-    i = waveread(call->song, buf, 500);
-/*    i = fread(buf, 1, 500, call->song);*/
-    if(i>0) {
-        rtp_session_send_with_ts(call->r_session, (uint8_t*) buf, i, call->user_ts);
-        call->user_ts += i;
-    } else {
-        log_debug("CALL_STREAM", "Song finished");
-        call->status=CALL_CLOSED;
-    }
-}
-
-/**
- * This function closes the call and frees used memory.
- *
- * @param call call data to free
- */
-call_t* call_free(call_t* call) {
-    call_t* next = NULL;
-    if(call->caller)
-        free(call->caller);
-    if(call->ip)
-        free(call->ip);
-
-    if(call->r_session != NULL)
-        rtp_session_destroy(call->r_session);
-
-    eXosip_call_terminate(ctx, call->cid, call->did);
- /*   fclose(call->song);*/
-    waveclose(call->song);
-
-    next = call->next;
-    free(call);
-
-    return next;
-}
-
-/**
- * This function is called when SIPbot is closing, it frees all calls
- */
-void call_freeall() {
-    while(call_list != NULL)
-       call_list = call_free(call_list);
-}
-
-/**
- * Cycles through all calls and update their status
- */
-void call_update() {
-    int update_list = 1;
-    time_t cur_time = time(NULL);
-    call_t* call = call_list;
-    call_t* call_prec = NULL;
-
-    while(call != NULL) {
-        update_list = 1;
-        switch(call->status) {
-            case CALL_RINGING:
-                if(call->ringing_timer > 0 && cur_time - call->ringing_timer > 2) {
-                    sip_answer_call(call);
-                    call->ringing_timer = -1;
-                }
-                break;
-            case CALL_ACTIVE: 
-                call_stream(call);
-                break;
-            case CALL_CLOSED:
-                log_debug("CALL_CLOSED", "Freeing memory");
-               
-                if(call_prec == NULL)
-                    call_list = call->next;
-                else 
-                    call_prec->next = call->next;
-               
-                call = call_free(call); 
-
-                update_list = 0;
-                break;
-        }
-        if(update_list) {
-            call_prec = call;
-            call = call->next;
-        }
-    }
-}
-
 /**
  * This function handles oSIP messages
  */
@@ -142,12 +46,13 @@ void sip_update() {
     sdp_media_t* sdp_audio_media;
 
     eXosip_event_t* evt;
-    call_t* call = NULL;
+    int ret;
     time_t cur_time = time(NULL);
 
 	if(reg_timer > 0 && cur_time - reg_timer > REG_TIMEOUT) {
 		log_debug("SIP_UPDATE", "Updating registration");
 		sip_reg_update();
+        reg_timer = 0; /* prevent multiple sip_reg_update() calls */
 	}
 
     evt = eXosip_event_wait(ctx, 0, 50);
@@ -181,69 +86,32 @@ void sip_update() {
 
             if(sdp_audio_conn != NULL && sdp_audio_media != NULL
                  && strlen(sdp_audio_conn->c_addr)>0) {
-                
-                call = (call_t*) calloc(1, sizeof(call_t));
-                if(call == NULL) {
-                    log_err("SIP_UPDATE", "Out of memory. Exiting.");
-                    exit(-1);
+               
+                ret = call_new(evt->request->from->displayname,
+                         sdp_audio_conn->c_addr,
+                         atoi(sdp_audio_media->m_port),
+                         evt->cid,
+                         evt->tid,
+                         evt->did);
+
+                if(ret) {
+                    eXosip_lock (ctx);
+                    eXosip_call_send_answer (ctx, evt->tid, 180, NULL); 
+                    eXosip_unlock (ctx);
                 }
-
-                call->caller = strdup(evt->request->from->displayname);
-                call->ip = strdup(sdp_audio_conn->c_addr);
-
-                call->port = atoi(sdp_audio_media->m_port);
-                call->cid = evt->cid;
-                call->tid = evt->tid;
-                call->did = evt->did;
-                call->status = CALL_RINGING;
-                call->ringing_timer = time(NULL);
-                call->r_session = NULL;
-                call->next = NULL;
-
-                /* prepare test song file */
-                call->user_ts = 0;
-                call->song = waveopen(WAVFILE);
-
-                if(call->song == NULL) {
-                    log_debug("SIP_UPDATE", "Cannot open " WAVFILE);
-                    exit(-1);
-                }
-
-                if(call_list == NULL)
-                    call_list = call;
-                else {
-                    call_t* head = call_list;
-                    while(head->next!=NULL) 
-                        head=head->next;
-                    head->next=call;
-                }
-
-                eXosip_lock (ctx);
-                eXosip_call_send_answer (ctx, evt->tid, 180, NULL); 
-                eXosip_unlock (ctx);
             } 
            
             sdp_message_free(sdp_packet);
             break;
         case EXOSIP_CALL_ACK:
             log_debug("SIP_UPDATE", "Call %d got CALL_ACK, starting stream...", evt->cid);
-            call = call_list;
-            while(call != NULL) {
-                if(call->cid == evt->cid) {
-                    call->status = CALL_ACTIVE;
-                }
-                call = call->next;
-            }
+            ret = call_set_status(evt->cid, CALL_ACTIVE);
+            if(!ret)
+                sip_terminate_call(evt->cid, evt->did);
             break;
         case EXOSIP_CALL_CLOSED:
             log_debug("SIP_UPDATE", "Call %d closed", evt->cid);
-            call = call_list;
-            while(call != NULL) {
-                if(call->cid == evt->cid) {
-                    call->status = CALL_CLOSED;
-                }
-                call = call->next;
-            }
+            call_set_status(evt->cid, CALL_CLOSED);
             break;
         default:
             log_debug("SIP_UPDATE", "Got unknown event %d. Ignoring.", evt->type);
@@ -401,3 +269,12 @@ int sip_answer_call(call_t* call) {
     return retval;
 }
 
+/**
+ * Terminate a SIP call 
+ *
+ * @param cid eXosip Call ID
+ * @param did eXosip Dialog ID
+ */
+void sip_terminate_call(int cid, int did) {
+    eXosip_call_terminate(ctx, cid, did);
+}

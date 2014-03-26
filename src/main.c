@@ -21,6 +21,7 @@
  */
 #include "common.h"
 #include "sip.h"
+#include "call.h"
 
 static volatile int stop_event = 0;
 

@@ -21,37 +21,20 @@
  */
 
 #include "../src/common.h"
+#include "../src/filter.h"
+
 #include <pulse/simple.h>
 #include <pulse/error.h>
 
-#define BB 44100
+#define BB 32000
 
-void lowpass(int16_t *in, int16_t *out, int n, float dt, float RC) {
-    int i;
-    float a = dt/ (RC+dt);
-
-    out[0]=in[0];
-
-    for(i=1;i<n;i++)
-        out[i] = out[i-1] + a*(in[i] - out[i-1]);
-}
-
-void highpass(int16_t *in, int16_t *out, int n, float dt, float RC) {
-    int i;
-    float a= dt/(RC+dt);
-    out[0]=in[0];
-
-    for(i=1;i<n;i++)
-        out[i] = a * (out[i-1] + in[i] - in[i-1]);
-}
 int main(int argc, char *argv[]) {
     FILE *fp;
-    int n;
-    int16_t buf[BB], out[BB];
+    int16_t buf[BB], out[(BB*8000/44100)];
     int error;
     static const pa_sample_spec ss = {
         .format = PA_SAMPLE_S16LE,
-        .rate = 44100,
+        .rate = 8000,
         .channels = 1
     };
 
@@ -65,18 +48,16 @@ int main(int argc, char *argv[]) {
     if(!fp)
         exit(-1);
 
-    fread(buf, 1, 44, fp);
-    n = fread(buf, 2, BB, fp);
+    fread(buf, 1, 46, fp);
+    fread(buf, 2, BB, fp);
     while(!feof(fp)) {
-        highpass(buf, out, BB, 1.0f/44100.0f, 0.000002);
-        memcpy(buf,out,BB*2);
-        lowpass(buf, out, BB, 1.0f/44100.0f, 0.00002);
-        if (pa_simple_write(s, out, (size_t) n*2, &error) < 0) {
+        downsample(buf, out, BB, 44100, 8000);  
+        if (pa_simple_write(s, out, (size_t) (BB*8000/44100)*2, &error) < 0) {
             fprintf(stderr, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
             goto finish;
         }
  
-        n = fread(buf, 2, BB, fp);
+        fread(buf, 2, BB, fp);
     }
 
     if (pa_simple_drain(s, &error) < 0) {

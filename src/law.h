@@ -28,6 +28,7 @@
 #include "filter.h"
 
 #pragma pack(2)
+
 typedef struct {
     uint32_t name;
     uint32_t remaining;
@@ -56,9 +57,9 @@ typedef struct wavfile {
 
 #pragma pack() 
 
-wavfile_t*  waveopen(char*);
-void        waveclose(wavfile_t*);
-int         waveread(wavfile_t*, char*, int);
+wavfile_t*  waveopen(char* file_name);
+void        waveclose(wavfile_t* wavfile);
+int         waveread(wavfile_t* wavfile, char* output, int len);
 
 uint8_t     linear2ulaw(int16_t sample);
 

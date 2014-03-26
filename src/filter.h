@@ -25,7 +25,7 @@
 
 #include "common.h"
 
-void        lowpass (int16_t*, int16_t*, int, float, float);
-void        highpass(int16_t*, int16_t*, int, float, float);
-
+void lowpass(int16_t *in, int16_t *out, int n, float dt, float RC); 
+void highpass(int16_t *in, int16_t *out, int n, float dt, float RC); 
+void downsample(int16_t *in, int16_t *out, int in_size, int in_rate, int out_rate); 
 #endif

@@ -58,3 +58,24 @@ void highpass(int16_t *in, int16_t *out, int n, float dt, float RC) {
         out[i] = a * (out[i-1] + in[i] - in[i-1]);
 }
 
+/**
+ * Downsample audio stream
+ *
+ * @param in input buffer
+ * @param out output buffer (downsampled audio)
+ * @param in_size input buffer size
+ * @param in_rate input rate (e.g. 44100)
+ * @param out_rate output rate (8000)
+ */
+void downsample(int16_t *in, int16_t *out, int in_size, int in_rate, int out_rate) {
+    int i,j;
+    int out_step = ceil(in_rate/out_rate);
+    int out_size = in_size*(float)out_rate/in_rate;
+
+    for(i=0;i<out_size;i++) {
+        out[i]=0;
+        for(j=0;j<out_step;j++) 
+            out[i] += (float) in[(int)(i*((float)in_rate/out_rate)+j)] / out_step;
+    }
+}
+

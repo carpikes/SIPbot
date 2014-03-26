@@ -21,14 +21,14 @@
  */
 
 #include "law.h"
-
+#include "filter.h"
 /**
  * Open a wave file.
  *
- * @param name Filename to open
+ * @param file_name Filename to open
  * @return wavfile_t File pointer.
  */ 
-wavfile_t* waveopen(char* name) {
+wavfile_t* waveopen(char* file_name) {
     wavechunk_t chunk = {0};
     riffhdr_t riff = {0};
     wavfile_t* wav = NULL;
@@ -37,7 +37,7 @@ wavfile_t* waveopen(char* name) {
     if(!wav) 
         return NULL;
 
-    if(!(wav->file = fopen(name, "rb"))) {
+    if(!(wav->file = fopen(file_name, "rb"))) {
         free(wav);
         return NULL;
     }
@@ -115,19 +115,19 @@ void waveclose(wavfile_t* wavfile) {
  * @param len Size of the output buffer
  */
 int waveread(wavfile_t* wavfile, char* output, int len) {
-    int i,j,n;
+    int i,n;
     int samples_num = (len * wavfile->header.sample_rate/8000);
     int bps = wavfile->header.bits_per_sample/8;
-    int16_t val;
     char *piece, *buf;
-    int16_t *f_in, *f_out;
+    int16_t *f_in, *f_out, *f_dsp;
     
     buf = (char*) calloc(samples_num, bps);
     piece = (char*) calloc(1, bps);
     f_in = (int16_t*) calloc(samples_num, 2);
     f_out = (int16_t*) calloc(samples_num, 2);
+    f_dsp = (int16_t*) calloc(len, 2);
 
-    if(!buf || !piece || !f_in || !f_out) {
+    if(!buf || !piece || !f_in || !f_out || !f_dsp) {
         log_err("WAVEREAD", "Cannot allocate memory");
         exit(-1);
     }
@@ -168,35 +168,23 @@ int waveread(wavfile_t* wavfile, char* output, int len) {
      *
      * High pass filter (antialiasing) + Low pass filter
      * (low frequencies create some noise in the phone)
-     */
-
-    highpass(f_in, f_out, n, 1.0f/wavfile->header.sample_rate, 0.000003);
+     */ 
+    highpass(f_in, f_out, n, 1.0f/wavfile->header.sample_rate, 0.000002);
     memcpy(f_in,f_out,n*2);
     lowpass(f_in, f_out, n, 1.0f/wavfile->header.sample_rate, 0.0001);
-    
 
-    /** 
-     * Downsampling
-     *
-     * And now resample audio to 8000 Hz (e.g. 44100 => 8000)
-     * Actually copies only one byte and skip N bytes.
-     */
-    for(i=0;i<len;++i) {
-    /*  TODO: implement something better than this.
-     *
-     *  #define BT_P_S (wavfile->header.sample_rate/8000)
-     *  val = 0;
-     *  for(j=0;j<BT_P_S;j++)
-     */
-        val += f_out[i*(wavfile->header.sample_rate/8000)+j*0];
-        output[i] = linear2ulaw(val);
-    }
+    /* Downsample audio to 8000Hz */
+    downsample(f_in, f_dsp, n, wavfile->header.sample_rate, 8000);
+
+    for(i=0;i<len;++i)
+        output[i] = linear2ulaw(f_dsp[i]);
 
 fail:
     free(buf);
     free(piece);
     free(f_in);
     free(f_out);
+    free(f_dsp);
     return i;
 }
 
