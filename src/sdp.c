@@ -21,7 +21,9 @@
 #include "sdp.h"
 
 
-int sdp_complete_200ok (struct eXosip_t* ctx, int did, osip_message_t * answer, char* ip, int port) {
+int sdp_complete_200ok (struct eXosip_t* ctx, int did, 
+                        osip_message_t * answer, char* ip, int port) {
+
     sdp_message_t *remote_sdp;
     sdp_media_t *remote_med;
     char *tmp = NULL;
@@ -39,7 +41,8 @@ int sdp_complete_200ok (struct eXosip_t* ctx, int did, osip_message_t * answer, 
     snprintf (buf, 4096,
             "v=0\r\n"
             "o=josua 0 0 IN IP4 %s\r\n"
-            "s=conversation\r\n" "c=IN IP4 %s\r\n" "t=0 0\r\n", localip, localip);
+            "s=conversation\r\n" "c=IN IP4 %s\r\n" "t=0 0\r\n", 
+            localip, localip);
 
     pos = 0;
     while (!osip_list_eol (&remote_sdp->m_medias, pos))

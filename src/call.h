@@ -75,12 +75,21 @@ struct call {
 
 typedef struct call call_t;
 
-void call_stream(call_t* call);
-void call_update();
-void call_freeall();
+
+/* Functions prototypes */
+
+void call_transmit_data(call_t* call);
+void call_receive_data(call_t* call);
+
+void call_update(void);
+
+void call_freeall(void);
 call_t* call_free(call_t* call);
+
+
 int call_new(const char* display_name, const char* rtp_addr, 
              int rtp_port, int cid, int tid, int did);
+
 int call_set_status(int cid, int status);
 
 #endif

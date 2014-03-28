@@ -32,7 +32,7 @@ static time_t           reg_timer = 0;
 /**
  * This function frees osip2 used memory
  */
-void sip_exit() {
+void sip_exit(void) {
 	sip_reg_delete();
     eXosip_quit(ctx);
     free(ctx);
@@ -40,7 +40,7 @@ void sip_exit() {
 /**
  * This function handles oSIP messages
  */
-void sip_update() {
+void sip_update(void) {
     sdp_message_t* sdp_packet;
     sdp_connection_t* sdp_audio_conn;
     sdp_media_t* sdp_audio_media;
@@ -77,7 +77,8 @@ void sip_update() {
             sdp_packet = eXosip_get_remote_sdp(ctx, evt->did);
 
             if(sdp_packet == NULL) {
-                log_err("SIP_UPDATE", "I've received a CALL_INVITE without SDP infos!");
+                log_err("SIP_UPDATE", 
+                        "I've received a CALL_INVITE without SDP infos!");
                 break;
             }
             
@@ -104,7 +105,8 @@ void sip_update() {
             sdp_message_free(sdp_packet);
             break;
         case EXOSIP_CALL_ACK:
-            log_debug("SIP_UPDATE", "Call %d got CALL_ACK, starting stream...", evt->cid);
+            log_debug("SIP_UPDATE", 
+                      "Call %d got CALL_ACK, starting stream...", evt->cid);
             ret = call_set_status(evt->cid, CALL_ACTIVE);
             if(!ret)
                 sip_terminate_call(evt->cid, evt->did);
@@ -114,7 +116,8 @@ void sip_update() {
             call_set_status(evt->cid, CALL_CLOSED);
             break;
         default:
-            log_debug("SIP_UPDATE", "Got unknown event %d. Ignoring.", evt->type);
+            log_debug("SIP_UPDATE", 
+                      "Got unknown event %d. Ignoring.", evt->type);
             break;
     }
 
@@ -124,7 +127,7 @@ void sip_update() {
 /**
  * This function initializes libeXosip2
  */
-int sip_init() {
+int sip_init(void) {
     int i, val;
 
     ctx = eXosip_malloc();
@@ -164,7 +167,8 @@ int sip_register(char* account, char* host, char* login, char* passwd) {
 
     eXosip_lock(ctx);
 
-    register_id = eXosip_register_build_initial_register(ctx, account, host, NULL, REG_TIMEOUT, &reg);
+    register_id = eXosip_register_build_initial_register(
+                        ctx, account, host, NULL, REG_TIMEOUT, &reg);
 
     if(register_id < 0) {
         eXosip_unlock(ctx);
@@ -246,10 +250,10 @@ int sip_answer_call(call_t* call) {
 	else
 	{
 		call->r_session = rtp_session_new(RTP_SESSION_SENDRECV);
-		rtp_session_set_blocking_mode(call->r_session, 1);
 		rtp_session_set_scheduling_mode(call->r_session, 1);
+		rtp_session_set_blocking_mode(call->r_session, 0);
 		rtp_session_set_connected_mode(call->r_session, 1);
-		rtp_session_set_payload_type(call->r_session, 0); /* TODO: 0 = pcmu8000??*/
+		rtp_session_set_payload_type(call->r_session, 0); 
 
 		rtp_session_set_local_addr(call->r_session, localip, 10500, 0);
 		rtp_session_set_remote_addr(call->r_session, call->ip, call->port);

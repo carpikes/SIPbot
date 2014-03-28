@@ -27,12 +27,12 @@
 #include "log.h"
 #include "call.h"
 
-void sip_exit();
-int sip_init();
-void sip_update();
+void sip_exit(void);
+int sip_init(void);
+void sip_update(void);
 int sip_register(char* account, char* host, char* login, char* passwd);
-int sip_reg_update();
-int sip_reg_delete();
+int sip_reg_update(void);
+int sip_reg_delete(void);
 int sip_answer_call(call_t* call);
 void sip_terminate_call(int cid, int did);
 

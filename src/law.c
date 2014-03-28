@@ -67,13 +67,19 @@ wavfile_t* waveopen(char* file_name) {
             }
 
             /* LETTURA HEADER */
-            if( wav->header.bits_per_sample>32 || wav->header.bits_per_sample==0) {
+            if( wav->header.bits_per_sample > 32 || 
+                wav->header.bits_per_sample == 0 ) {
+
                 log_err("WAVEOPEN", "%d bits per sample? Something is wrong",
                         wav->header.bits_per_sample);
                 goto fail;
             }
 
-            log_debug("WAVEFILE", "Format: %d, Chans: %d, Rate: %d, BPS: %d, Block: %d, BPSample: %d", wav->header.format, wav->header.num_chans, wav->header.sample_rate, wav->header.bytes_per_sec, wav->header.block_align, wav->header.bits_per_sample);
+            log_debug("WAVEFILE", "Format: %d, Chans: %d, Rate: %d, BPS: %d, "
+                      "Block: %d, BPSample: %d", wav->header.format, 
+                      wav->header.num_chans, wav->header.sample_rate, 
+                      wav->header.bytes_per_sec, wav->header.block_align, 
+                      wav->header.bits_per_sample);
 
         }
         else if(!memcmp(&chunk.name, "data", 4)) {
@@ -156,10 +162,19 @@ int waveread(wavfile_t* wavfile, char* output, int len) {
 
         memcpy(piece, &buf[i*bps], bps);
         switch(wavfile->header.bits_per_sample) {
-            case  8: f_in[i] = (int16_t) ((*(int8_t *)piece) - 0x80) << 8; break;
-            case 16: f_in[i] = *(int16_t *)piece; break;
-            case 32: f_in[i] = ((*(int32_t *)piece) >> 16); break;
-            default: exit(-1); /* TODO: error message */
+            case 8: 
+                f_in[i] = (int16_t) ((*(int8_t *)piece) - 0x80) << 8; 
+                break;
+            case 16: 
+                f_in[i] = *(int16_t *)piece; 
+                break;
+            case 32: 
+                f_in[i] = ((*(int32_t *)piece) >> 16); 
+                break;
+            default: 
+                log_err("WAVEREAD", "Unsupported wave (%d bits)",
+                        wavfile->header.bits_per_sample);
+                exit(-1);
         }
     }
 

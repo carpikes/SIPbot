@@ -30,17 +30,13 @@ static call_t* call_list = NULL;
 #define RTP_BUFSIZE 512
 
 /**
- * This function handles a call and send a wave packet through the net
+ * This functions is called when socket is ready to transmit
+ * a new audio frame. 
  *
- * @param call call data
+ * @param call The call
  */
-void call_stream(call_t* call) {
-    struct timespec tv;
+void call_transmit_data(call_t* call) {
     char send_buf[RTP_BUFSIZE];
-    char *recv_buf = NULL;
-
-    int recv_bufsize = 0;
-    int must_recv_more;
     int i;
     
     /**
@@ -49,17 +45,28 @@ void call_stream(call_t* call) {
     i = waveread(call->song, send_buf, RTP_BUFSIZE);
     
     if(i>0) {
-        rtp_session_send_with_ts(call->r_session, (uint8_t*) send_buf, i, call->send_ts);
+        rtp_session_send_with_ts(call->r_session, (uint8_t*) send_buf, 
+                                 i, call->send_ts);
         call->send_ts += RTP_BUFSIZE;
     } else {
         log_debug("CALL_STREAM", "Song finished");
         call->status=CALL_CLOSED;
     }
 
-    /**
-     * Recieve stream
-     */
-    i=0;
+}
+
+/**
+ * This functions is called when socket is ready to receive
+ * a new audio frame.
+ *
+ * @param call The call
+ */
+void call_receive_data(call_t* call) {
+    char *recv_buf = NULL;
+    int i = 0;
+    int recv_bufsize = 0;
+    int must_recv_more = 0;
+ 
     do {
         recv_bufsize += RTP_BUFSIZE;
         recv_buf = (char *) realloc(recv_buf, recv_bufsize);
@@ -67,25 +74,25 @@ void call_stream(call_t* call) {
             log_err("CALL_STREAM", "Cannot allocate memory");
             exit(-1);
         }
-        i += rtp_session_recv_with_ts(call->r_session, (uint8_t*) recv_buf, RTP_BUFSIZE, 
-                                     call->recv_ts, &must_recv_more);
+
+        /* Receive a piece of data */
+        i += rtp_session_recv_with_ts(call->r_session, (uint8_t*) recv_buf, 
+                RTP_BUFSIZE, call->recv_ts, &must_recv_more);
+
     }while(i>0 && must_recv_more && recv_bufsize < RTP_BUFSIZE * 20);
+
     call->recv_ts+=RTP_BUFSIZE;
 
-    /* Do something here with the received stream */
+    /* TODO: here you can use recv_buf for your own purpose */
 
     free(recv_buf);
-
-    /* TODO: multithreading */
-    tv.tv_sec = 0;
-    tv.tv_nsec = (long)(1000.0f*8000.0f/RTP_BUFSIZE);
-    nanosleep(&tv, NULL);
 }
 
 /**
  * This function closes the call and frees used memory.
  *
  * @param call call data to free
+ * @return This function returns the call next to the deleted one
  */
 call_t* call_free(call_t* call) {
     call_t* next = NULL;
@@ -111,7 +118,7 @@ call_t* call_free(call_t* call) {
  * This function is called when SIPbot is closing
  * It frees and closes all calls.
  */
-void call_freeall() {
+void call_freeall(void) {
     while(call_list != NULL)
        call_list = call_free(call_list);
 }
@@ -119,23 +126,30 @@ void call_freeall() {
 /**
  * Cycles through all calls and update their status
  */
-void call_update() {
-    int update_list = 1;
+void call_update(void) {
+    SessionSet *send_set, *recv_set;
+    int num_socks=0, select_ret, update_list = 1;
     time_t cur_time = time(NULL);
     call_t* call = call_list;
     call_t* call_prec = NULL;
 
+    send_set = session_set_new();
+    recv_set = session_set_new();
     while(call != NULL) {
         update_list = 1;
         switch(call->status) {
             case CALL_RINGING:
-                if(call->ringing_timer > 0 && cur_time - call->ringing_timer > 2) {
+                if(call->ringing_timer > 0 && 
+                   cur_time-call->ringing_timer > 2) {
+                    /* Ringing timeout: answer the call */
                     sip_answer_call(call);
                     call->ringing_timer = -1;
                 }
                 break;
-            case CALL_ACTIVE: 
-                call_stream(call);
+            case CALL_ACTIVE:
+                session_set_set(send_set, call->r_session);
+                session_set_set(recv_set, call->r_session);
+                num_socks++;
                 break;
             case CALL_CLOSED:
                 log_debug("CALL_CLOSED", "Freeing memory");
@@ -147,14 +161,38 @@ void call_update() {
                
                 call = call_free(call); 
 
+                /* call_list is already incremented */
                 update_list = 0;
                 break;
         }
+
         if(update_list) {
             call_prec = call;
             call = call->next;
         }
     }
+
+    if(num_socks > 0) {
+        select_ret = session_set_select(recv_set, send_set, NULL);
+
+        if(select_ret > 0) {
+            call = call_list;
+
+            while(call != NULL) {
+                if(call->status == CALL_ACTIVE) {
+                   if(session_set_is_set(recv_set, call->r_session))
+                       call_receive_data(call);
+                   if(session_set_is_set(send_set, call->r_session))
+                       call_transmit_data(call);
+                }
+
+                call = call->next;
+            }
+        }
+    }
+
+    session_set_destroy(recv_set);
+    session_set_destroy(send_set);
 }
 
 /**
@@ -189,8 +227,7 @@ int call_new(const char* display_name, const char* rtp_addr,
     call->r_session = NULL;
     call->next = NULL;
 
-    /* FIXME: I think these values should be random.. */
-    call->send_ts = 0;
+    call->send_ts = rand();
     call->recv_ts = 0;
 
     call->song = waveopen(WAVFILE);
