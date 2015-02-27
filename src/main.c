@@ -39,6 +39,8 @@ int main (int argc, char **argv) {
     srand(time(NULL));    
 	ortp_init();
 	ortp_scheduler_init();
+
+    rtp_profile_set_payload(&av_profile, 101, &payload_type_telephone_event);
     ortp_set_log_level_mask(ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR);
 
     if(sip_init() == -1) {

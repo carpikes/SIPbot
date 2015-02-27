@@ -33,7 +33,7 @@ static time_t           reg_timer = 0;
  * This function frees osip2 used memory
  */
 void sip_exit(void) {
-	sip_reg_delete();
+    sip_reg_delete();
     eXosip_quit(ctx);
     free(ctx);
 }
@@ -49,11 +49,11 @@ void sip_update(void) {
     int ret;
     time_t cur_time = time(NULL);
 
-	if(reg_timer > 0 && cur_time - reg_timer > REG_TIMEOUT) {
-		log_debug("SIP_UPDATE", "Updating registration");
-		sip_reg_update();
+    if(reg_timer > 0 && cur_time - reg_timer > REG_TIMEOUT) {
+        log_debug("SIP_UPDATE", "Updating registration");
+        sip_reg_update();
         reg_timer = 0; /* prevent multiple sip_reg_update() calls */
-	}
+    }
 
     evt = eXosip_event_wait(ctx, 0, 50);
     eXosip_lock(ctx);
@@ -73,7 +73,7 @@ void sip_update(void) {
             break;
         case EXOSIP_CALL_INVITE:
             log_debug("SIP_UPDATE", "Received CALL_INVITE from %s", 
-                        evt->request->from->displayname);
+                    evt->request->from->displayname);
             sdp_packet = eXosip_get_remote_sdp(ctx, evt->did);
 
             if(sdp_packet == NULL) {
@@ -81,19 +81,19 @@ void sip_update(void) {
                         "I've received a CALL_INVITE without SDP infos!");
                 break;
             }
-            
+
             sdp_audio_conn = eXosip_get_audio_connection(sdp_packet);
             sdp_audio_media = eXosip_get_audio_media(sdp_packet);
 
             if(sdp_audio_conn != NULL && sdp_audio_media != NULL
-                 && strlen(sdp_audio_conn->c_addr)>0) {
-               
+                    && strlen(sdp_audio_conn->c_addr) > 0) {
+
                 ret = call_new(evt->request->from->displayname,
-                         sdp_audio_conn->c_addr,
-                         atoi(sdp_audio_media->m_port),
-                         evt->cid,
-                         evt->tid,
-                         evt->did);
+                        sdp_audio_conn->c_addr,
+                        atoi(sdp_audio_media->m_port),
+                        evt->cid,
+                        evt->tid,
+                        evt->did);
 
                 if(ret) {
                     eXosip_lock (ctx);
@@ -101,12 +101,12 @@ void sip_update(void) {
                     eXosip_unlock (ctx);
                 }
             } 
-           
+
             sdp_message_free(sdp_packet);
             break;
         case EXOSIP_CALL_ACK:
             log_debug("SIP_UPDATE", 
-                      "Call %d got CALL_ACK, starting stream...", evt->cid);
+                    "Call %d got CALL_ACK, starting stream...", evt->cid);
             ret = call_set_status(evt->cid, CALL_ACTIVE);
             if(!ret)
                 sip_terminate_call(evt->cid, evt->did);
@@ -117,7 +117,7 @@ void sip_update(void) {
             break;
         default:
             log_debug("SIP_UPDATE", 
-                      "Got unknown event %d. Ignoring.", evt->type);
+                    "Got unknown event %d. Ignoring.", evt->type);
             break;
     }
 
@@ -168,7 +168,7 @@ int sip_register(char* account, char* host, char* login, char* passwd) {
     eXosip_lock(ctx);
 
     register_id = eXosip_register_build_initial_register(
-                        ctx, account, host, NULL, REG_TIMEOUT, &reg);
+            ctx, account, host, NULL, REG_TIMEOUT, &reg);
 
     if(register_id < 0) {
         eXosip_unlock(ctx);
@@ -192,20 +192,20 @@ int sip_register(char* account, char* host, char* login, char* passwd) {
  * @return 1 if there are no errors
  */
 int sip_reg_update() {
-	osip_message_t* reg = NULL;
-	int i;
-	if(register_id != 0) {
-		eXosip_lock(ctx);
-		i = eXosip_register_build_register(ctx, register_id, REG_TIMEOUT, &reg);
-		if(i<0) {
-			eXosip_unlock(ctx);
-			return 0;
-		}
+    osip_message_t* reg = NULL;
+    int i;
+    if(register_id != 0) {
+        eXosip_lock(ctx);
+        i = eXosip_register_build_register(ctx, register_id, REG_TIMEOUT, &reg);
+        if(i<0) {
+            eXosip_unlock(ctx);
+            return 0;
+        }
 
-		eXosip_register_send_register(ctx, register_id, reg);
-		eXosip_unlock(ctx);
-	}
-	return 1;
+        eXosip_register_send_register(ctx, register_id, reg);
+        eXosip_unlock(ctx);
+    }
+    return 1;
 }
 /**
  * Cancels a provider registration
@@ -216,7 +216,7 @@ int sip_reg_delete() {
 
     if(register_id != 0) {
         eXosip_lock (ctx);
-		log_debug("SIP_REG_DELETE", "Unregistering");
+        log_debug("SIP_REG_DELETE", "Unregistering");
         i = eXosip_register_build_register (ctx, register_id, 0, &reg);
         if (i < 0) {
             eXosip_unlock (ctx);
@@ -230,6 +230,10 @@ int sip_reg_delete() {
     return 0;
 }
 
+void recv_tev_cb(RtpSession *session, int type, long user_data) {
+    log_debug("PHONE", "Code %d", type);
+}
+
 /**
  * This function is called when SIPbot answers a call
  *
@@ -239,37 +243,38 @@ int sip_reg_delete() {
 int sip_answer_call(call_t* call) {
     int retval=0,i;
     char localip[128] = { 0 };
-	osip_message_t* answer = NULL;
+    osip_message_t* answer = NULL;
 
     eXosip_guess_localip(ctx, AF_INET, localip, 127);
 
-	eXosip_lock (ctx);
-	i = eXosip_call_build_answer (ctx, call->tid, 200, &answer);
-	if (i != 0)
-		eXosip_call_send_answer (ctx, call->tid, 400, NULL);
-	else
-	{
-		call->r_session = rtp_session_new(RTP_SESSION_SENDRECV);
-		rtp_session_set_scheduling_mode(call->r_session, 1);
-		rtp_session_set_blocking_mode(call->r_session, 0);
-		rtp_session_set_connected_mode(call->r_session, 1);
-		rtp_session_set_payload_type(call->r_session, 0); 
+    eXosip_lock (ctx);
+    i = eXosip_call_build_answer (ctx, call->tid, 200, &answer);
+    if (i != 0)
+        eXosip_call_send_answer (ctx, call->tid, 400, NULL);
+    else
+    {
+        call->r_session = rtp_session_new(RTP_SESSION_SENDRECV);
+        rtp_session_set_scheduling_mode(call->r_session, 1);
+        rtp_session_set_blocking_mode(call->r_session, 0);
+        rtp_session_set_payload_type(call->r_session, 0); 
 
-		rtp_session_set_local_addr(call->r_session, localip, 10500, 0);
-		rtp_session_set_remote_addr(call->r_session, call->ip, call->port);
+        rtp_session_set_local_addr(call->r_session, localip, 10500, 0);
+        rtp_session_set_remote_addr(call->r_session, call->ip, call->port);
 
-		i = sdp_complete_200ok (ctx, call->did, answer, localip, 10500);
-		if (i != 0)
-		{
-			osip_message_free (answer);
-			eXosip_call_send_answer (ctx, call->tid, 415, NULL);
-		}
-		else {
-			eXosip_call_send_answer (ctx, call->tid, 200, answer);
+        rtp_session_signal_connect(call->r_session, "telephone-event", (RtpCallback) recv_tev_cb, 0);
+
+        i = sdp_complete_200ok (ctx, call->did, answer, localip, 10500);
+        if (i != 0)
+        {
+            osip_message_free (answer);
+            eXosip_call_send_answer (ctx, call->tid, 415, NULL);
+        }
+        else {
+            eXosip_call_send_answer (ctx, call->tid, 200, answer);
             retval = 1;
         }
-	}
-	eXosip_unlock (ctx);
+    }
+    eXosip_unlock (ctx);
     return retval;
 }
 

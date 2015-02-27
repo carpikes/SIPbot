@@ -28,6 +28,7 @@
 static call_t* call_list = NULL;
 
 #define RTP_BUFSIZE 512
+#define RTP_RECVBUF 512
 
 /**
  * This functions is called when socket is ready to transmit
@@ -38,15 +39,15 @@ static call_t* call_list = NULL;
 void call_transmit_data(call_t* call) {
     char send_buf[RTP_BUFSIZE];
     int i;
-    
+
     /**
      * Send stream
      */
     i = waveread(call->song, send_buf, RTP_BUFSIZE);
-    
+
     if(i>0) {
         rtp_session_send_with_ts(call->r_session, (uint8_t*) send_buf, 
-                                 i, call->send_ts);
+                i, call->send_ts);
         call->send_ts += RTP_BUFSIZE;
     } else {
         log_debug("CALL_STREAM", "Song finished");
@@ -62,30 +63,22 @@ void call_transmit_data(call_t* call) {
  * @param call The call
  */
 void call_receive_data(call_t* call) {
-    char *recv_buf = NULL;
+    uint8_t recv_buf[RTP_RECVBUF];
+    int recv_quantity = 0;
     int i = 0;
-    int recv_bufsize = 0;
     int must_recv_more = 0;
- 
+
     do {
-        recv_bufsize += RTP_BUFSIZE;
-        recv_buf = (char *) realloc(recv_buf, recv_bufsize);
-        if(!recv_buf) {
-            log_err("CALL_STREAM", "Cannot allocate memory");
-            exit(-1);
-        }
-
         /* Receive a piece of data */
-        i += rtp_session_recv_with_ts(call->r_session, (uint8_t*) recv_buf, 
-                RTP_BUFSIZE, call->recv_ts, &must_recv_more);
+        i = rtp_session_recv_with_ts(call->r_session, (uint8_t*) recv_buf, 
+                RTP_RECVBUF, call->recv_ts, &must_recv_more);
 
-    }while(i>0 && must_recv_more && recv_bufsize < RTP_BUFSIZE * 20);
+        if(i>0) {
+            recv_quantity += i;
+        }
+    }while(must_recv_more);
 
-    call->recv_ts+=RTP_BUFSIZE;
-
-    /* TODO: here you can use recv_buf for your own purpose */
-
-    free(recv_buf);
+    call->recv_ts += recv_quantity;
 }
 
 /**
@@ -120,7 +113,7 @@ call_t* call_free(call_t* call) {
  */
 void call_freeall(void) {
     while(call_list != NULL)
-       call_list = call_free(call_list);
+        call_list = call_free(call_list);
 }
 
 /**
@@ -140,7 +133,7 @@ void call_update(void) {
         switch(call->status) {
             case CALL_RINGING:
                 if(call->ringing_timer > 0 && 
-                   cur_time-call->ringing_timer > 2) {
+                        cur_time-call->ringing_timer > 2) {
                     /* Ringing timeout: answer the call */
                     sip_answer_call(call);
                     call->ringing_timer = -1;
@@ -153,12 +146,12 @@ void call_update(void) {
                 break;
             case CALL_CLOSED:
                 log_debug("CALL_CLOSED", "Freeing memory");
-               
+
                 if(call_prec == NULL)
                     call_list = call->next;
                 else 
                     call_prec->next = call->next;
-               
+
                 call = call_free(call); 
 
                 /* call_list is already incremented */
@@ -180,10 +173,10 @@ void call_update(void) {
 
             while(call != NULL) {
                 if(call->status == CALL_ACTIVE) {
-                   if(session_set_is_set(recv_set, call->r_session))
-                       call_receive_data(call);
-                   if(session_set_is_set(send_set, call->r_session))
-                       call_transmit_data(call);
+                    if(session_set_is_set(recv_set, call->r_session))
+                        call_receive_data(call);
+                    if(session_set_is_set(send_set, call->r_session))
+                        call_transmit_data(call);
                 }
 
                 call = call->next;
@@ -206,7 +199,7 @@ void call_update(void) {
  * @param did eXosip Dialog ID
  */
 int call_new(const char* display_name, const char* rtp_addr, 
-             int rtp_port, int cid, int tid, int did) {
+        int rtp_port, int cid, int tid, int did) {
 
     call_t *call = NULL;
     call = (call_t*) calloc(1, sizeof(call_t));

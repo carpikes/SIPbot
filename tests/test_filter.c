@@ -38,11 +38,11 @@ void lowpass(int16_t *in, int16_t *out, int n, float dt, float RC) {
 
 void highpass(int16_t *in, int16_t *out, int n, float dt, float RC) {
     int i;
-    float a= dt/(RC+dt);
+    float a= exp(-2.2/(RC*dt));
     out[0]=in[0];
 
     for(i=1;i<n;i++)
-        out[i] = a * (out[i-1] + in[i] - in[i-1]);
+        out[i] = (1-a)*(in[i] - in[i-1]) + a* out[i-1];
 }
 int main(int argc, char *argv[]) {
     FILE *fp;
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     fread(buf, 1, 44, fp);
     n = fread(buf, 2, BB, fp);
     while(!feof(fp)) {
-        highpass(buf, out, BB, 1.0f/44100.0f, 0.000002);
+        highpass(buf, out, BB, 1.0f, 10);
         memcpy(buf,out,BB*2);
         lowpass(buf, out, BB, 1.0f/44100.0f, 0.00002);
         if (pa_simple_write(s, out, (size_t) n*2, &error) < 0) {
