@@ -1,5 +1,5 @@
 /* SIPbot - An opensource VoIP answering machine
- * Copyright (C) 2014 Alain (Carpikes) Carlucci
+ * Copyright (C) 2014-2015 Alain (Carpikes) Carlucci
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 
 #include "common.h"
 
-void lowpass(int16_t *in, int16_t *out, int n, float dt, float RC); 
-void highpass(int16_t *in, int16_t *out, int n, float dt, float RC); 
+void lowpass(int16_t *in, int16_t *out, int n, float a); 
+void highpass(int16_t *in, int16_t *out, int n, float a); 
 void downsample(int16_t *in, int16_t *out, int in_size, int in_rate, int out_rate); 
 #endif

@@ -16,28 +16,22 @@
  */
 
 /**
- * @file common.h
+ * @file cmds.c
+ * @brief Commands
  */
+#include "cmds.h"
 
-#ifndef COMMON_H
-#define COMMON_H
+void cmd_play(call_t *call, char *arg) {
+    cmd_stop(call, NULL);
+    call->exec.wav = waveopen(arg);
+}
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <math.h>
-#include <sys/time.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
+void cmd_stop(call_t *call, char *arg) {
+    if(call->exec.wav)
+        waveclose(call->exec.wav);
+    call->exec.wav = NULL;
+}
 
-#include <eXosip2/eXosip.h>
-#include <ortp/ortp.h>
-
-#include "config.h"
-
-#endif
+void cmd_kill(call_t *call, char *arg) {
+    call->status = CALL_CLOSED;
+}

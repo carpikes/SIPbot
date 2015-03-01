@@ -21,39 +21,147 @@
  */
 #include "call.h"
 #include "sip.h"
+#include "cmds.h"
+
+#define RTP_SENDBUF 512
+#define RTP_RECVBUF 160
 
 /**
- * \brief Active calls
+ * Active calls
  */
 static call_t* call_list = NULL;
 
-#define RTP_BUFSIZE 512
-#define RTP_RECVBUF 512
+/**
+ * Command table
+ *
+ * Each command is 4 characters long! 
+ */
+cmd_t commands[] = {
+    {"PLAY", cmd_play},
+    {"STOP", cmd_stop},
+    {"KILL", cmd_kill},
+    {NULL, NULL},
+};
 
 /**
- * This functions is called when socket is ready to transmit
+ * Read a stderr line from the called program
+ *
+ * @param call The call
+ */
+int parse_error(call_t* call) {
+    char buf[128];
+    int n, len;
+
+    n = read(call->exec.efd, buf, 128);
+    if(n > 0) {
+        len = strlen(buf);
+        if(len > 0) {
+            buf[len-1] = 0;
+            len--;
+        }
+
+        log_debug("PARSE", "ERROR: %s\n", buf);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Parse a command
+ *
+ * @param call The call
+ * @param line Line to parse
+ */
+void parse_command(call_t* call, char *line) {
+    cmd_t *cur = commands;
+    char cmd[5];
+    char *args = NULL;
+    size_t len;
+
+    len = strlen(line);
+
+    /* Due to semplicity, each cmd is 4 char long */
+    if(len >= 4) {
+        memcpy(cmd, line, 4);
+        cmd[4] = 0;
+
+        if(len > 5) {
+            if(line[4] != ' ')
+                return;
+            args = (char *) malloc(len - 5 + 1);
+            memcpy(args, line + 5, len - 5);
+            args[len-5] = 0;
+        } 
+
+        while(cur->cmd != NULL) {
+            if(!strcmp(cmd, cur->cmd)) {
+                log_debug("COMMAND", "Triggering %s (%s)", cmd, (args?args:"<NULL>"));
+                
+                cur->func(call, args);
+                break;
+            }
+
+            cur++;
+        }
+
+        if(cur->cmd == NULL)
+            log_debug("COMMAND", "Unknown input: %s\n", line);
+
+        if(args)
+            free(args);
+    }
+}
+
+/**
+ * Read data from the called program and parse each line
+ *
+ * @param call The call
+ */
+int parse_input(call_t* call) {
+    char buf[128];
+    char line[128];
+    int i, j, n, len;
+
+    memset(buf, 0, sizeof(buf));
+    memset(line, 0, sizeof(line));
+    n = read(call->exec.rfd, buf, 128);
+    if(n > 0) {
+        len = strlen(buf);
+
+        for(i=0,j=0;i<len;i++) {
+            if(buf[i] == '\n') {
+                parse_command(call, line);
+                j = 0;
+                memset(line, 0, sizeof(line));
+            }
+            else 
+                line[j++] = buf[i];
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * This function is called when socket is ready to transmit
  * a new audio frame. 
  *
  * @param call The call
  */
 void call_transmit_data(call_t* call) {
-    char send_buf[RTP_BUFSIZE];
-    int i;
+    char send_buf[RTP_SENDBUF];
+
+    memset(send_buf, 0xFF, RTP_SENDBUF);
 
     /**
      * Send stream
      */
-    i = waveread(call->song, send_buf, RTP_BUFSIZE);
-
-    if(i>0) {
-        rtp_session_send_with_ts(call->r_session, (uint8_t*) send_buf, 
-                i, call->send_ts);
-        call->send_ts += RTP_BUFSIZE;
-    } else {
-        log_debug("CALL_STREAM", "Song finished");
-        call->status=CALL_CLOSED;
-    }
-
+    if(call->exec.wav)
+        waveread(call->exec.wav, send_buf, RTP_SENDBUF);
+    
+    rtp_session_send_with_ts(call->r_session, (uint8_t*) send_buf, 
+            RTP_SENDBUF, call->send_ts);
+    call->send_ts += RTP_SENDBUF;
 }
 
 /**
@@ -63,9 +171,8 @@ void call_transmit_data(call_t* call) {
  * @param call The call
  */
 void call_receive_data(call_t* call) {
-    uint8_t recv_buf[RTP_RECVBUF];
-    int recv_quantity = 0;
-    int i = 0;
+    uint8_t recv_buf[RTP_RECVBUF] = {0};
+    int i;
     int must_recv_more = 0;
 
     do {
@@ -73,12 +180,10 @@ void call_receive_data(call_t* call) {
         i = rtp_session_recv_with_ts(call->r_session, (uint8_t*) recv_buf, 
                 RTP_RECVBUF, call->recv_ts, &must_recv_more);
 
-        if(i>0) {
-            recv_quantity += i;
-        }
-    }while(must_recv_more);
+        /* TODO: here you can use recv_buf for your own purpose */
+    }while(must_recv_more && i>0);
 
-    call->recv_ts += recv_quantity;
+    call->recv_ts += RTP_RECVBUF;
 }
 
 /**
@@ -98,8 +203,7 @@ call_t* call_free(call_t* call) {
         rtp_session_destroy(call->r_session);
 
     sip_terminate_call(call->cid, call->did);
-    if(call->song != NULL)
-        waveclose(call->song);
+    sclose(&call->exec);
 
     next = call->next;
     free(call);
@@ -121,6 +225,8 @@ void call_freeall(void) {
  */
 void call_update(void) {
     SessionSet *send_set, *recv_set;
+    fd_set cmd_set;
+    int cmd_max = 0;
     int num_socks=0, select_ret, update_list = 1;
     time_t cur_time = time(NULL);
     call_t* call = call_list;
@@ -128,6 +234,7 @@ void call_update(void) {
 
     send_set = session_set_new();
     recv_set = session_set_new();
+    FD_ZERO(&cmd_set);
     while(call != NULL) {
         update_list = 1;
         switch(call->status) {
@@ -142,6 +249,10 @@ void call_update(void) {
             case CALL_ACTIVE:
                 session_set_set(send_set, call->r_session);
                 session_set_set(recv_set, call->r_session);
+                FD_SET(call->exec.rfd, &cmd_set);
+                FD_SET(call->exec.efd, &cmd_set);
+                cmd_max = (cmd_max > call->exec.rfd) ? cmd_max : call->exec.rfd;
+                cmd_max = (cmd_max > call->exec.efd) ? cmd_max : call->exec.efd;
                 num_socks++;
                 break;
             case CALL_CLOSED:
@@ -166,6 +277,33 @@ void call_update(void) {
     }
 
     if(num_socks > 0) {
+        struct timeval tv;
+        tv.tv_usec = 1000;
+        tv.tv_sec = 0;
+        select_ret = select(cmd_max, &cmd_set, NULL, NULL, &tv);
+
+        if(select_ret > 0) {
+            call = call_list;
+            while(call != NULL) {
+                if(call->status == CALL_ACTIVE) { 
+                    if(FD_ISSET(call->exec.rfd, &cmd_set)) {
+                        if(!parse_input(call)) {
+                            log_debug("CALL_EXEC", "Program terminated");
+                            call->status=CALL_CLOSED;
+                        }
+                    }
+
+                    if(FD_ISSET(call->exec.efd, &cmd_set)) {
+                        if(!parse_error(call)) {
+                            log_debug("CALL_EXEC", "Program terminated");
+                            call->status=CALL_CLOSED;
+                        }
+                    }
+                }
+            call = call->next;
+            }
+        }
+
         select_ret = session_set_select(recv_set, send_set, NULL);
 
         if(select_ret > 0) {
@@ -200,7 +338,7 @@ void call_update(void) {
  */
 int call_new(const char* display_name, const char* rtp_addr, 
         int rtp_port, int cid, int tid, int did) {
-
+    char *tmp = NULL;
     call_t *call = NULL;
     call = (call_t*) calloc(1, sizeof(call_t));
     if(call == NULL) {
@@ -223,13 +361,16 @@ int call_new(const char* display_name, const char* rtp_addr,
     call->send_ts = rand();
     call->recv_ts = 0;
 
-    call->song = waveopen(WAVFILE);
-
-    if(call->song == NULL) {
-        log_debug("SIP_UPDATE", "Cannot open " WAVFILE);
+    if(spawn(PROGRAM_NAME, &call->exec) < 0) {
+        log_debug("SIP_UPDATE", "Cannot open %s", PROGRAM_NAME);
         call_free(call);
         return 0;
     }
+
+    tmp = (char *) calloc(strlen(call->caller) + 16, 1);
+    sprintf(tmp, "CALL %s\n", call->caller);
+    write(call->exec.wfd, tmp, strlen(tmp));
+    free(tmp);
 
     if(call_list == NULL)
         call_list = call;

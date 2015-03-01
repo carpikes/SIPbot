@@ -16,28 +16,25 @@
  */
 
 /**
- * @file common.h
+ * @file spawn.h
+ * @brief Launch a program with bidirectional pipes
  */
 
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef SPAWN_H
+#define SPAWN_H
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <math.h>
-#include <sys/time.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
+#include "common.h"
+#include "law.h"
 
-#include <eXosip2/eXosip.h>
-#include <ortp/ortp.h>
+typedef struct {
+    /** @brief File descriptors */
+    int rfd, wfd, efd;
 
-#include "config.h"
+    /** @brief Wave file */
+    wavfile_t *wav;
+} spawn_t;
+
+pid_t spawn(const char *cmd, spawn_t *out);
+void sclose(spawn_t *cmd);
 
 #endif

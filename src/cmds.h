@@ -16,28 +16,27 @@
  */
 
 /**
- * @file common.h
+ * @file cmds.h
+ * @brief Commands
  */
+#ifndef CMDS_H
+#define CMDS_H
 
-#ifndef COMMON_H
-#define COMMON_H
+#include "common.h"
+#include "call.h"
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <math.h>
-#include <sys/time.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
+typedef struct {
+    /** @brief Command string */
+    const char * cmd;
 
-#include <eXosip2/eXosip.h>
-#include <ortp/ortp.h>
+    /** @brief Function to call */
+    void (*func)(call_t *call, char *arg);
+} cmd_t;
 
-#include "config.h"
+/* Command prototypes */
+
+void cmd_play(call_t *call, char *arg);
+void cmd_stop(call_t *call, char *arg);
+void cmd_kill(call_t *call, char *arg);
 
 #endif

@@ -1,5 +1,5 @@
 /* SIPbot - An opensource VoIP answering machine
- * Copyright (C) 2014 Alain (Carpikes) Carlucci
+ * Copyright (C) 2014-2015 Alain (Carpikes) Carlucci
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "common.h"
 #include "log.h"
 #include "law.h"
+#include "spawn.h"
 
 enum e_calls{
     CALL_RINGING, 
@@ -37,14 +38,16 @@ struct call {
 
     /** @brief Call id */
     int cid;
+
     /** @brief Transaction id */
     int tid;
+
     /** @brief Dialog id */
     int did;
 
     /** @brief Caller's phone number */
     char* caller;
-    
+
     /** @brief RTP server ip address */
     char* ip;
 
@@ -60,8 +63,8 @@ struct call {
     /** @brief oRTP session data */
     RtpSession* r_session;
 
-    /** @brief Song file handler */
-    wavfile_t* song;
+    /** @brief Executable handler */
+    spawn_t exec;
 
     /** @brief RTP sent stream timestamp  */
     int send_ts;
@@ -88,7 +91,7 @@ call_t* call_free(call_t* call);
 
 
 int call_new(const char* display_name, const char* rtp_addr, 
-             int rtp_port, int cid, int tid, int did);
+        int rtp_port, int cid, int tid, int did);
 
 int call_set_status(int cid, int status);
 

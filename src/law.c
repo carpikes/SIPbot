@@ -1,5 +1,5 @@
 /* SIPbot - An opensource VoIP answering machine
- * Copyright (C) 2014 Alain (Carpikes) Carlucci
+ * Copyright (C) 2014-2015 Alain (Carpikes) Carlucci
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -182,11 +182,12 @@ int waveread(wavfile_t* wavfile, char* output, int len) {
      * Bandwidth filtering.
      *
      * High pass filter (antialiasing) + Low pass filter
-     * (low frequencies create some noise in the phone)
+     * (low frequencies may create some noise in the phone)
      */ 
-    highpass(f_in, f_out, n, 1.0f/wavfile->header.sample_rate, 0.000002);
+
+    highpass(f_in, f_out, n, 0.99451509); /* e^(-2.2/400hz) */
     memcpy(f_in,f_out,n*2);
-    lowpass(f_in, f_out, n, 1.0f/wavfile->header.sample_rate, 0.0001);
+    lowpass(f_in, f_out, n, 0.99924166); /* e^(-2.2/2900hz) */
 
     /* Downsample audio to 8000Hz */
     downsample(f_in, f_dsp, n, wavfile->header.sample_rate, 8000);

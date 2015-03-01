@@ -1,5 +1,5 @@
 /* SIPbot - An opensource VoIP answering machine
- * Copyright (C) 2014 Alain (Carpikes) Carlucci
+ * Copyright (C) 2014-2015 Alain (Carpikes) Carlucci
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -230,8 +230,15 @@ int sip_reg_delete() {
     return 0;
 }
 
-void recv_tev_cb(RtpSession *session, int type, long user_data) {
-    log_debug("PHONE", "Code %d", type);
+void recv_tev_cb(RtpSession *session, int type, unsigned long user_data) {
+    char buf[32];
+    call_t *call = (call_t *)(user_data);
+
+    memset(buf, 0, sizeof(buf));
+    sprintf(buf, "DTMF %d\n", type);
+    write(call->exec.wfd, buf, strlen(buf));
+
+    log_debug("DTMF", "Pressed %d", type);
 }
 
 /**
@@ -244,6 +251,8 @@ int sip_answer_call(call_t* call) {
     int retval=0,i;
     char localip[128] = { 0 };
     osip_message_t* answer = NULL;
+    int jittcomp = 50;
+    bool_t adapt = TRUE;
 
     eXosip_guess_localip(ctx, AF_INET, localip, 127);
 
@@ -257,11 +266,13 @@ int sip_answer_call(call_t* call) {
         rtp_session_set_scheduling_mode(call->r_session, 1);
         rtp_session_set_blocking_mode(call->r_session, 0);
         rtp_session_set_payload_type(call->r_session, 0); 
+        rtp_session_enable_adaptive_jitter_compensation(call->r_session,adapt);
+        rtp_session_set_jitter_compensation(call->r_session,jittcomp);
 
         rtp_session_set_local_addr(call->r_session, localip, 10500, 0);
         rtp_session_set_remote_addr(call->r_session, call->ip, call->port);
 
-        rtp_session_signal_connect(call->r_session, "telephone-event", (RtpCallback) recv_tev_cb, 0);
+        rtp_session_signal_connect(call->r_session, "telephone-event", (RtpCallback) recv_tev_cb, (unsigned long) call);
 
         i = sdp_complete_200ok (ctx, call->did, answer, localip, 10500);
         if (i != 0)

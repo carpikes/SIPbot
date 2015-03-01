@@ -1,5 +1,5 @@
 /* SIPbot - An opensource VoIP answering machine
- * Copyright (C) 2014 Alain (Carpikes) Carlucci
+ * Copyright (C) 2014-2015 Alain (Carpikes) Carlucci
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,12 +28,10 @@
  * @param in Audio data that should be filtered (input)
  * @param out Filtered audio data (output)
  * @param n Number of samples, audio data size
- * @param dt dt is 1/Sample Rate (e.g. 1/44100)
- * @param RC R*C constant, cut off frequency: 1/(2*PI*RC)
+ * @param a e^(-2.2/F) where F is the cutoff frequency
  */
-void lowpass(int16_t *in, int16_t *out, int n, float dt, float RC) {
+void lowpass(int16_t *in, int16_t *out, int n, float a) {
     int i;
-    float a = dt/ (RC+dt);
 
     out[0]=in[0];
     for(i=1;i<n;i++)
@@ -46,12 +44,10 @@ void lowpass(int16_t *in, int16_t *out, int n, float dt, float RC) {
  * @param in Audio data that should be filtered (input)
  * @param out Filtered audio data (output)
  * @param n Number of samples, audio data size
- * @param dt dt is 1/Sample Rate (e.g. 1/44100)
- * @param RC R*C constant, cut off frequency: 1/(2*PI*RC)
+ * @param a e^(-2.2/F) where F is the cutoff frequency
  */
-void highpass(int16_t *in, int16_t *out, int n, float dt, float RC) {
+void highpass(int16_t *in, int16_t *out, int n, float a) {
     int i;
-    float a= dt/(RC+dt);
     out[0]=in[0];
 
     for(i=1;i<n;i++)
@@ -68,7 +64,7 @@ void highpass(int16_t *in, int16_t *out, int n, float dt, float RC) {
  * @param out_rate output rate (8000)
  */
 void downsample(int16_t *in, int16_t *out, 
-     int in_size, int in_rate, int out_rate) {
+    int in_size, int in_rate, int out_rate) {
     int i,j;
     int out_step = ceil(in_rate/out_rate);
     int out_size = in_size*(float)out_rate/in_rate;

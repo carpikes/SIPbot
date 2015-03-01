@@ -1,5 +1,5 @@
 /* SIPbot - An opensource VoIP answering machine
- * Copyright (C) 2014 Alain (Carpikes) Carlucci
+ * Copyright (C) 2014-2015 Alain (Carpikes) Carlucci
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +38,6 @@
 /** @brief Client registration timeout */
 #define REG_TIMEOUT 3600
 
-/** @brief Wave file */
-#define WAVFILE "music.wav"
+/** @brief Call handler */
+#define PROGRAM_NAME "./scripts/test.php"
 #endif
