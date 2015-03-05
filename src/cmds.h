@@ -36,6 +36,7 @@ typedef struct {
 /* Command prototypes */
 
 void cmd_play(call_t *call, char *arg);
+void cmd_append(call_t *call, char *arg);
 void cmd_stop(call_t *call, char *arg);
 void cmd_kill(call_t *call, char *arg);
 

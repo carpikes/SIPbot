@@ -53,16 +53,28 @@ pid_t spawn(const char *cmd, spawn_t* out) {
     out->rfd = rpipe[0];
     out->wfd = wpipe[1];
     out->efd = epipe[0];
-    out->wav = NULL;
+    out->list = NULL;
+    out->temp = NULL;
 
     return pid;
 }
 
 void sclose(spawn_t *cmd) {
+    wavlist_t *el;
     close(cmd->rfd);
     close(cmd->wfd);
     close(cmd->efd);
     
-    if(cmd->wav != NULL)
-        waveclose(cmd->wav);
+    while(cmd->list != NULL) {
+        el = cmd->list;
+        cmd->list = cmd->list->next;
+
+        if(el->wav)
+            waveclose(el->wav);
+
+        free(el);
+    }
+
+    if(cmd->temp)
+        free(cmd->temp);
 } 

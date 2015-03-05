@@ -23,6 +23,7 @@
 #include "sip.h"
 #include "cmds.h"
 
+#define IN_BUFSIZE  8192
 #define RTP_SENDBUF 512
 #define RTP_RECVBUF 160
 
@@ -38,6 +39,7 @@ static call_t* call_list = NULL;
  */
 cmd_t commands[] = {
     {"PLAY", cmd_play},
+    {"APND", cmd_append},
     {"STOP", cmd_stop},
     {"KILL", cmd_kill},
     {NULL, NULL},
@@ -118,24 +120,39 @@ void parse_command(call_t* call, char *line) {
  * @param call The call
  */
 int parse_input(call_t* call) {
-    char buf[128];
-    char line[128];
+    char buf[IN_BUFSIZE];
+    char line[IN_BUFSIZE];
     int i, j, n, len;
 
     memset(buf, 0, sizeof(buf));
     memset(line, 0, sizeof(line));
-    n = read(call->exec.rfd, buf, 128);
+    n = read(call->exec.rfd, buf, IN_BUFSIZE);
     if(n > 0) {
         len = strlen(buf);
 
-        for(i=0,j=0;i<len;i++) {
+        if(call->exec.temp) {
+            memcpy(line, call->exec.temp, strlen(call->exec.temp));
+            free(call->exec.temp);
+            call->exec.temp = NULL;
+        }
+
+        for(i=0,j=strlen(line);i<len && j<IN_BUFSIZE;i++) {
             if(buf[i] == '\n') {
                 parse_command(call, line);
                 j = 0;
                 memset(line, 0, sizeof(line));
             }
-            else 
+            else if(buf[i]>=' ')
                 line[j++] = buf[i];
+        }
+
+        if(j>0 && j<IN_BUFSIZE) {
+            call->exec.temp = (char *) calloc(strlen(line),1);
+            if(!call->exec.temp) {
+                log_err("PARSE", "Not enough memory");
+                exit(-1);
+            }
+            memcpy(call->exec.temp, line, strlen(line));
         }
         return 1;
     }
@@ -149,15 +166,29 @@ int parse_input(call_t* call) {
  * @param call The call
  */
 void call_transmit_data(call_t* call) {
+    wavlist_t *el;
     char send_buf[RTP_SENDBUF];
+    int i;
 
     memset(send_buf, 0xFF, RTP_SENDBUF);
 
     /**
      * Send stream
      */
-    if(call->exec.wav)
-        waveread(call->exec.wav, send_buf, RTP_SENDBUF);
+    while((el = call->exec.list)) {
+        i = waveread(el->wav, send_buf, RTP_SENDBUF);
+        if(i>=0)
+            break;
+
+        /* TODO: change these lines with wavelist_remove_head(..)*/
+        call->exec.list = el->next; 
+        if(el->wav)
+            waveclose(el->wav);
+        free(el);
+        if(call->exec.list == NULL) 
+            write(call->exec.wfd, "FNSH\n",5);
+        
+    }
     
     rtp_session_send_with_ts(call->r_session, (uint8_t*) send_buf, 
             RTP_SENDBUF, call->send_ts);

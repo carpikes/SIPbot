@@ -21,17 +21,51 @@
  */
 #include "cmds.h"
 
+void cmd_append(call_t *call, char *arg) {
+    wavlist_t *head;
+    wavlist_t *el;
+
+    el = (wavlist_t *) malloc(sizeof(wavlist_t));
+    if(!el) {
+        log_err("CMD_APPEND", "Not enough memory");
+        exit(-1);
+    }
+    el->wav = waveopen(arg);
+    el->next = NULL;
+
+    if(!el->wav) {
+        log_err("CMD_APPEND", "Cannot find %s", arg);
+        free(el);
+        return;
+    }
+
+    head = call->exec.list;
+    if(head) {
+        while(head->next)
+            head = head->next;
+
+        head->next = el;
+    } else
+        call->exec.list = el;
+}
+
 void cmd_play(call_t *call, char *arg) {
     cmd_stop(call, NULL);
-    call->exec.wav = waveopen(arg);
+    cmd_append(call, arg);
 }
 
 void cmd_stop(call_t *call, char *arg) {
-    if(call->exec.wav)
-        waveclose(call->exec.wav);
-    call->exec.wav = NULL;
+    wavlist_t *el;
+    while((el = call->exec.list)) {
+        call->exec.list = el->next;
+
+        if(el->wav)
+            waveclose(el->wav);
+        free(el);
+    }
 }
 
 void cmd_kill(call_t *call, char *arg) {
+    cmd_stop(call, NULL);
     call->status = CALL_CLOSED;
 }

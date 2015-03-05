@@ -39,6 +39,7 @@ wavfile_t* waveopen(char* file_name) {
 
     if(!(wav->file = fopen(file_name, "rb"))) {
         free(wav);
+        log_err("WAVEOPEN", "Cannot find: %s", file_name);
         return NULL;
     }
 
@@ -51,9 +52,6 @@ wavfile_t* waveopen(char* file_name) {
     for(;;) {
         if(fread(&chunk, sizeof(wavechunk_t), 1, wav->file) != 1)
             goto fail;
-
-        log_debug("WAVEOPEN", "Header: '%c%c%c%c'", chunk.name, 
-                    chunk.name>>8, chunk.name>>16, chunk.name>>24);
 
         if(!memcmp(&chunk.name, "fmt ", 4)) {
             if(fread(&wav->header, sizeof(wavefmt_t), 1, wav->file) != 1) {
@@ -75,12 +73,6 @@ wavfile_t* waveopen(char* file_name) {
                 goto fail;
             }
 
-            log_debug("WAVEFILE", "Format: %d, Chans: %d, Rate: %d, BPS: %d, "
-                      "Block: %d, BPSample: %d", wav->header.format, 
-                      wav->header.num_chans, wav->header.sample_rate, 
-                      wav->header.bytes_per_sec, wav->header.block_align, 
-                      wav->header.bits_per_sample);
-
         }
         else if(!memcmp(&chunk.name, "data", 4)) {
             if(wav->header.num_chans>0)
@@ -89,10 +81,9 @@ wavfile_t* waveopen(char* file_name) {
             log_err("WAVEOPEN", "This WAVE file seems have 0 audio channels");
             goto fail;
         }
-        else {  /* skip others */
-            log_debug("WAVEOPEN", "Skipping header");
+        else /* skip others */
             fseek(wav->file, chunk.size+((chunk.size%2)?1:0), SEEK_CUR);
-        }
+        
     }
 
 fail:
@@ -156,7 +147,8 @@ int waveread(wavfile_t* wavfile, char* output, int len) {
         if(wavfile->header.num_chans == 2) {
             /* TODO: implement stereo mixingg. */
             log_err("WAVEREAD", "Function not implemented yet.");
-            exit(1); 
+            i = -1;
+            goto fail;
         }
 
 
@@ -174,7 +166,8 @@ int waveread(wavfile_t* wavfile, char* output, int len) {
             default: 
                 log_err("WAVEREAD", "Unsupported wave (%d bits)",
                         wavfile->header.bits_per_sample);
-                exit(-1);
+                i = -1;
+                goto fail;
         }
     }
 

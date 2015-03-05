@@ -26,12 +26,20 @@
 #include "common.h"
 #include "law.h"
 
+typedef struct wavlist {
+    wavfile_t *wav;
+    struct wavlist *next;
+} wavlist_t;
+
 typedef struct {
     /** @brief File descriptors */
     int rfd, wfd, efd;
 
-    /** @brief Wave file */
-    wavfile_t *wav;
+    /** @brief Audio files */
+    wavlist_t *list;
+
+    /** @bried Temp command */
+    char *temp;
 } spawn_t;
 
 pid_t spawn(const char *cmd, spawn_t *out);
