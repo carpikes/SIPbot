@@ -23,6 +23,12 @@
 #define LOG_H
 #include "common.h"
 
-void log_debug(const char* tag, const char* str, ...);
-void log_err(const char* tag, const char* str, ...);
+#define L_DEBUG   2
+#define L_INFO    1
+#define L_ERROR   0
+
+#define log_debug(a,...) log_write(L_DEBUG, a, __VA_ARGS__)
+#define log_info(a,...) log_write(L_INFO, a, __VA_ARGS__)
+#define log_err(a,...) log_write(L_ERROR, a, __VA_ARGS__)
+void log_write(int level, const char* tag, const char* str, ...);
 #endif

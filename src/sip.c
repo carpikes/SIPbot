@@ -272,7 +272,7 @@ int sip_answer_call(call_t* call) {
         rtp_session_set_local_addr(call->r_session, localip, 10500, 0);
         rtp_session_set_remote_addr(call->r_session, call->ip, call->port);
 
-        rtp_session_signal_connect(call->r_session, "telephone-event", (RtpCallback) recv_tev_cb, (unsigned long) call);
+        rtp_session_signal_connect(call->r_session, "telephone-event", (RtpCallback) recv_tev_cb, (void *) call);
 
         i = sdp_complete_200ok (ctx, call->did, answer, localip, 10500);
         if (i != 0)

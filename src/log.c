@@ -21,23 +21,25 @@
  */
 #include "log.h"
 
-void log_debug(const char* tag, const char* str, ...) {
+void log_write(int level, const char* tag, const char* str, ...) {
     va_list ap;
+    FILE *file = stdout;
+    time_t t;
+    struct tm *tt;
+
     if( !str ) return;
 
-    fprintf(stdout, "[DEBUG] %s: ", tag);
-    va_start(ap, str);
-    vfprintf(stdout, str, ap );
-    fprintf(stdout, "\n" );
-    va_end(ap);
-}
-void log_err(const char* tag, const char* str, ...) {
-    va_list ap;
-    if( !str ) return;
-
-    fprintf(stderr, "[ERROR] %s: ", tag);
-    va_start(ap, str);
-    vfprintf(stderr, str, ap );
-    fprintf(stderr, "\n" );
-    va_end(ap);
+    time(&t);
+    tt = localtime(&t);
+    if(LOG_LEVEL >= level) {
+        if(level == 0)
+            file = stderr;
+        fprintf(file, "[%04d-%02d-%02d %02d:%02d:%02d] %s: ", 
+                tt->tm_year + 1900, tt->tm_mon, tt->tm_mday, 
+                tt->tm_hour, tt->tm_min, tt->tm_sec, tag);
+        va_start(ap, str);
+        vfprintf(file, str, ap );
+        fprintf(file, "\n" );
+        va_end(ap);
+    }
 }
