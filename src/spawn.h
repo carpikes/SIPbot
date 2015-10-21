@@ -35,6 +35,9 @@ typedef struct {
     /** @brief File descriptors */
     int rfd, wfd, efd;
 
+    /** @brief PID */
+    int pid;
+
     /** @brief Audio files */
     wavlist_t *list;
 

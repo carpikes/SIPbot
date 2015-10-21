@@ -53,6 +53,7 @@ pid_t spawn(const char *cmd, spawn_t* out) {
     out->rfd = rpipe[0];
     out->wfd = wpipe[1];
     out->efd = epipe[0];
+    out->pid = pid;
     out->list = NULL;
     out->temp = NULL;
 
@@ -64,6 +65,9 @@ void sclose(spawn_t *cmd) {
     close(cmd->rfd);
     close(cmd->wfd);
     close(cmd->efd);
+
+    if(cmd->pid)
+        kill(cmd->pid, SIGKILL);
     
     while(cmd->list != NULL) {
         el = cmd->list;
