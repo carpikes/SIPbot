@@ -22,9 +22,10 @@
 
 #include "sip.h"
 #include "sdp.h"
+#include "config.h"
 
 static int              port = 5060;
-static int              register_id = NULL;
+static int              register_id = 0;
 static struct eXosip_t* ctx = NULL;
 static time_t           reg_timer = 0;
 
@@ -49,7 +50,7 @@ void sip_update(void) {
     int ret;
     time_t cur_time = time(NULL);
 
-    if(reg_timer > 0 && cur_time - reg_timer > REG_TIMEOUT) {
+    if(reg_timer > 0 && cur_time - reg_timer > config_readint(CONFIG_TIMEOUT)) {
         log_debug("SIP_UPDATE", "Updating registration");
         sip_reg_update();
         reg_timer = 0; /* prevent multiple sip_reg_update() calls */
@@ -161,14 +162,15 @@ int sip_init(void) {
  * @param passwd SIP password
  * @return A number >=0 if this packet was built and sent
  */
-int sip_register(char* account, char* host, char* login, char* passwd) {
+int sip_register(const char* account, const char* host, 
+        const char* login, const char* passwd) {
     osip_message_t* reg = NULL;
     int i;
 
     eXosip_lock(ctx);
 
     register_id = eXosip_register_build_initial_register(
-            ctx, account, host, NULL, REG_TIMEOUT, &reg);
+            ctx, account, host, NULL, config_readint(CONFIG_TIMEOUT), &reg);
 
     if(register_id < 0) {
         eXosip_unlock(ctx);
@@ -196,7 +198,7 @@ int sip_reg_update() {
     int i;
     if(register_id != 0) {
         eXosip_lock(ctx);
-        i = eXosip_register_build_register(ctx, register_id, REG_TIMEOUT, &reg);
+        i = eXosip_register_build_register(ctx, register_id, config_readint(CONFIG_TIMEOUT), &reg);
         if(i<0) {
             eXosip_unlock(ctx);
             return 0;
