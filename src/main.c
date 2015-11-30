@@ -27,6 +27,7 @@
 static volatile int stop_event = 0;
 
 void signal_handler(int s);
+void config_handler(int s);
 void signal_init(void);
 void signal_halt(void);
 void show_usage(char *argv[]);
@@ -90,6 +91,7 @@ int main (int argc, char *argv[]) {
     call_freeall();
     sip_exit();
 	ortp_exit();
+	config_free();
 
     signal_halt();
     return 0;
@@ -100,16 +102,24 @@ void signal_handler(int s) {
     signal(s, signal_handler);
 }
 
+void config_handler(int s) {
+    signal(s, SIG_IGN);
+    config_reload(); 
+    signal(s, config_handler);
+}
+
 void signal_init(void) {
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
     signal(SIGQUIT, signal_handler);
+    signal(SIGHUP, config_handler);
 }
 
 void signal_halt(void) {
     signal(SIGINT, 0);
     signal(SIGTERM, 0);
     signal(SIGQUIT, 0);
+    signal(SIGHUP, 0);
 }
 
 void show_usage(char *argv[]) {

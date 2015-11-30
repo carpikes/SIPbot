@@ -25,12 +25,15 @@ static char *names[] = {
 
 typedef struct {
     char *val[N_NAMES];
+    const char *config_file;
 } cdata_t;
 
 cdata_t config;
 
 int config_init(const char *filename);
-void config_free();
+void config_reload(void);
+
+void config_free(void);
 int config_readint(uint8_t pos);
 const char *config_readstring(uint8_t pos);
 #endif
