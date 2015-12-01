@@ -17,6 +17,10 @@
 *.out
 *.app
 
+# Config
+*.ini
+
 sipbot
 /test_*
 docs/
+scripts/*

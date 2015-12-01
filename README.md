@@ -18,32 +18,55 @@ I use a free phone number given by messagenet.it
 Usage
 ---
 
+#### 0) Get a VoIP Account
+
+You can get a free VoIP account on messagenet.com
+
+I've tried only that one. Let me know if SIPbot does not work with other services.
+
 #### 1) Download libraries and compilers
 
     $ sudo apt-get install build-essential libexosip2-dev libortp-dev libosip2-dev
 
-#### 2) Get a VoIP Account
+#### 2) Clone
 
-I've tried only messagenet.it. Let me know if SIPbot does not work with other services.
+    $ git clone https://github.com/carpikes/sipbot.git
+    $ cd sipbot
 
-#### 3) Configure
-
-Nowadays you can change SIPbot config only before compilation.
-Open `src/config.h` and write your account info inside
-
-There is also `PROGRAM_NAME` macro which contains the name of the program to launch on each call.
-
-#### 4) Build
+#### 3) Build
 
     $ make
 
 If you read some library error, check their version!
 
+#### 4) Configure
+
+    $ cp template.config sipbot.ini
+    $ vim sipbot.ini # or open with your favourite editor
+
+`sipbot.ini` is well documented :)
+
+Write your account info inside that file.
+
+Note that `program_name` macro contains the name of the program 
+which will be launched on each received call.
+
 #### 5) Launch
 
     $ ./sipbot
+    
+Sipbot will try to load the default config file `sipbot.ini`.
+If you want to specify a custom config file, use the `-c` parameter,
+e.g. `./sipbot -c custom.ini`
 
 Now when you call your VoIP number, SIPbot will launch your program and handle the call.
+
+Reload config
+---
+
+If you want to reload the configuration, send a `SIGHUP` to sipbot.
+
+    $ kill -HUP `pidof sipbot`
 
 Program protocol
 ---

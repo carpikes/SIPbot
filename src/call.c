@@ -22,6 +22,7 @@
 #include "call.h"
 #include "sip.h"
 #include "cmds.h"
+#include "config.h"
 
 #define IN_BUFSIZE  8192
 #define RTP_SENDBUF 512
@@ -370,6 +371,7 @@ void call_update(void) {
 int call_new(const char* display_name, const char* rtp_addr, 
         int rtp_port, int cid, int tid, int did) {
     char *tmp = NULL;
+    const char *prog = config_readstring(CONFIG_PROGRAM);
     call_t *call = NULL;
     call = (call_t*) calloc(1, sizeof(call_t));
     if(call == NULL) {
@@ -392,8 +394,8 @@ int call_new(const char* display_name, const char* rtp_addr,
     call->send_ts = rand();
     call->recv_ts = 0;
 
-    if(spawn(PROGRAM_NAME, &call->exec) < 0) {
-        log_debug("SIP_UPDATE", "Cannot open %s", PROGRAM_NAME);
+    if(spawn(prog, &call->exec) < 0) {
+        log_debug("SIP_UPDATE", "Cannot open %s", prog);
         call_free(call);
         return 0;
     }

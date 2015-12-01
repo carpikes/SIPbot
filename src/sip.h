@@ -29,10 +29,14 @@
 
 void sip_exit(void);
 int sip_init(void);
+
 void sip_update(void);
-int sip_register(char* account, char* host, char* login, char* passwd);
+int sip_register( const char* account, const char* host, 
+        const char* login, const char* passwd);
+
 int sip_reg_update(void);
 int sip_reg_delete(void);
+
 int sip_answer_call(call_t* call);
 void sip_terminate_call(int cid, int did);
 

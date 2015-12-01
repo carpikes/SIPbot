@@ -22,12 +22,14 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <ctype.h>
 #include <signal.h>
 #include <math.h>
 #include <time.h>
@@ -38,7 +40,5 @@
 
 #include <eXosip2/eXosip.h>
 #include <ortp/ortp.h>
-
-#include "config.h"
 
 #endif

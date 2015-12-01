@@ -21,6 +21,10 @@
  */
 #include "log.h"
 
+#ifndef LOG_LEVEL
+#define LOG_LEVEL 99
+#endif
+
 void log_write(int level, const char* tag, const char* str, ...) {
     va_list ap;
     FILE *file = stdout;
@@ -41,5 +45,6 @@ void log_write(int level, const char* tag, const char* str, ...) {
         vfprintf(file, str, ap );
         fprintf(file, "\n" );
         va_end(ap);
+        fflush(file);
     }
 }
