@@ -29,6 +29,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <ctype.h>
 #include <signal.h>
 #include <math.h>
 #include <time.h>
