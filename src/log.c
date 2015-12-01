@@ -45,5 +45,6 @@ void log_write(int level, const char* tag, const char* str, ...) {
         vfprintf(file, str, ap );
         fprintf(file, "\n" );
         va_end(ap);
+        fflush(file);
     }
 }
