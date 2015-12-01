@@ -23,7 +23,6 @@ char *getword(char *str, int len) {
     /* Duplicate and return */
     ret = (char *) calloc(e-s+1,1);
     memcpy(ret, str+s, e-s);
-    printf("WORD: '%s'\n", ret);
     return ret;
 }
 
@@ -87,6 +86,10 @@ int config_init(const char *filename) {
 
             for(i=0; i<N_NAMES; i++)
                 if(!strcmp(names[i], key)) {
+                    /* Duplicated config */
+                    if(config.val[i] != NULL)
+                        goto err;
+
                     config.val[i] = value;
                     value = NULL;
                     break;
@@ -95,7 +98,9 @@ int config_init(const char *filename) {
             if(i == N_NAMES)
                 goto err;
 clean_line:
+            if(key) free(key);
             if(lbuf) free(lbuf);
+            key = lbuf = NULL;
             buf_size = 0;
         }
     }
