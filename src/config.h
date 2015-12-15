@@ -13,6 +13,7 @@ static char *names[] = {
     "reg_pass",
     "reg_timeout",
     "program_name",
+    "max_concurrent_calls",
 };
 
 #define CONFIG_REGINFO 0
@@ -21,6 +22,7 @@ static char *names[] = {
 #define CONFIG_REGPASS 3
 #define CONFIG_TIMEOUT 4
 #define CONFIG_PROGRAM 5
+#define CONFIG_MAXCALLS 6
 
 
 typedef struct {

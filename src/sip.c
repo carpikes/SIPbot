@@ -28,6 +28,7 @@ static int              port = 5060;
 static int              register_id = 0;
 static struct eXosip_t* ctx = NULL;
 static time_t           reg_timer = 0;
+static int              current_calls = 0;
 
 
 /**
@@ -75,6 +76,15 @@ void sip_update(void) {
         case EXOSIP_CALL_INVITE:
             log_debug("SIP_UPDATE", "Received CALL_INVITE from %s", 
                     evt->request->from->displayname);
+
+            if(current_calls >= config_readint(CONFIG_MAXCALLS)) {
+                eXosip_lock (ctx);
+                eXosip_call_send_answer (ctx, evt->tid, 486, NULL); 
+                eXosip_unlock (ctx);
+                sip_terminate_call(evt->cid, evt->did);
+                break;
+            }
+
             sdp_packet = eXosip_get_remote_sdp(ctx, evt->did);
 
             if(sdp_packet == NULL) {
@@ -96,9 +106,11 @@ void sip_update(void) {
                         evt->tid,
                         evt->did);
 
+                /** Start ringing */
                 if(ret) {
                     eXosip_lock (ctx);
                     eXosip_call_send_answer (ctx, evt->tid, 180, NULL); 
+                    ++current_calls;
                     eXosip_unlock (ctx);
                 }
             } 
@@ -115,6 +127,7 @@ void sip_update(void) {
         case EXOSIP_CALL_CLOSED:
             log_debug("SIP_UPDATE", "Call %d closed", evt->cid);
             call_set_status(evt->cid, CALL_CLOSED);
+            --current_calls;
             break;
         default:
             log_debug("SIP_UPDATE", 
@@ -274,7 +287,8 @@ int sip_answer_call(call_t* call) {
         rtp_session_set_local_addr(call->r_session, localip, 10500, 0);
         rtp_session_set_remote_addr(call->r_session, call->ip, call->port);
 
-        rtp_session_signal_connect(call->r_session, "telephone-event", (RtpCallback) recv_tev_cb, (void *) call);
+        rtp_session_signal_connect(call->r_session, "telephone-event", 
+                (RtpCallback) recv_tev_cb, (unsigned long) call);
 
         i = sdp_complete_200ok (ctx, call->did, answer, localip, 10500);
         if (i != 0)
