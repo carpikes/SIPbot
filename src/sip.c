@@ -28,7 +28,7 @@ static int              port = 5060;
 static int              register_id = 0;
 static struct eXosip_t* ctx = NULL;
 static time_t           reg_timer = 0;
-static int              current_calls = 0;
+int                     current_calls = 0;
 
 
 /**
@@ -78,6 +78,7 @@ void sip_update(void) {
                     evt->request->from->displayname);
 
             if(current_calls >= config_readint(CONFIG_MAXCALLS)) {
+                log_err("SIP_UPDATE", "Rejecting call..");
                 eXosip_lock (ctx);
                 eXosip_call_send_answer (ctx, evt->tid, 486, NULL); 
                 eXosip_unlock (ctx);
@@ -127,7 +128,6 @@ void sip_update(void) {
         case EXOSIP_CALL_CLOSED:
             log_debug("SIP_UPDATE", "Call %d closed", evt->cid);
             call_set_status(evt->cid, CALL_CLOSED);
-            --current_calls;
             break;
         default:
             log_debug("SIP_UPDATE", 

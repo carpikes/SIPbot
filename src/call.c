@@ -33,6 +33,8 @@
  */
 static call_t* call_list = NULL;
 
+extern int current_calls;
+
 /**
  * Command table
  *
@@ -239,6 +241,8 @@ call_t* call_free(call_t* call) {
 
     next = call->next;
     free(call);
+
+    --current_calls;
 
     return next;
 }
