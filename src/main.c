@@ -113,6 +113,7 @@ void signal_init(void) {
     signal(SIGTERM, signal_handler);
     signal(SIGQUIT, signal_handler);
     signal(SIGHUP, config_handler);
+    signal(SIGCHLD, SIG_IGN);
 }
 
 void signal_halt(void) {
@@ -120,6 +121,7 @@ void signal_halt(void) {
     signal(SIGTERM, 0);
     signal(SIGQUIT, 0);
     signal(SIGHUP, 0);
+    signal(SIGCHLD, 0);
 }
 
 void show_usage(char *argv[]) {
