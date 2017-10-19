@@ -7,13 +7,13 @@ OBJECTS=$(SOURCES:.c=.o)
 DOXYGEN=doxygen
 EXECUTABLE=sipbot
 
-all: 
-	$(CC) $(LDFLAGS) $(SOURCES) $(CFLAGS) -o $(EXECUTABLE)
+all:
+	$(CC) $(SOURCES) $(CFLAGS) -o $(EXECUTABLE) $(LDFLAGS)
 
 audio-tests:
-	$(CC) $(LDFLAGS) src/log.c src/law.c tests/test_wave.c src/filter.c $(CFLAGS) -o test_wave	
-	$(CC) -Wall -g -lpulse -lpulse-simple -lm tests/test_filter.c -o test_filter
-	$(CC) -Wall -g -lpulse -lpulse-simple -lm tests/test_downsample.c src/filter.c -o test_downsample
+	$(CC) src/log.c src/law.c tests/test_wave.c src/filter.c $(CFLAGS) -o test_wave $(LDFLAGS)
+	$(CC) -Wall -g tests/test_filter.c -o test_filter -lpulse -lpulse-simple -lm
+	$(CC) -Wall -g tests/test_downsample.c src/filter.c -o test_downsample -lpulse -lpulse-simple -lm
 
 doc:
 	$(DOXYGEN) DoxyFile
