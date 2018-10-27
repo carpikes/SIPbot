@@ -22,7 +22,8 @@
 
 #include "spawn.h"
 
-pid_t spawn(const char *cmd, spawn_t* out) {
+pid_t spawn(const char *cmd, spawn_t *out)
+{
     int wpipe[2], rpipe[2], epipe[2];
     pid_t pid;
 
@@ -32,7 +33,8 @@ pid_t spawn(const char *cmd, spawn_t* out) {
     if ((pid = fork()) < 0)
         return pid;
 
-    if (!pid) {
+    if (!pid)
+    {
         close(rpipe[0]);
         close(wpipe[1]);
         close(epipe[0]);
@@ -50,35 +52,37 @@ pid_t spawn(const char *cmd, spawn_t* out) {
     close(wpipe[0]);
     close(epipe[1]);
 
-    out->rfd = rpipe[0];
-    out->wfd = wpipe[1];
-    out->efd = epipe[0];
-    out->pid = pid;
+    out->rfd  = rpipe[0];
+    out->wfd  = wpipe[1];
+    out->efd  = epipe[0];
+    out->pid  = pid;
     out->list = NULL;
     out->temp = NULL;
 
     return pid;
 }
 
-void sclose(spawn_t *cmd) {
+void sclose(spawn_t *cmd)
+{
     wavlist_t *el;
     close(cmd->rfd);
     close(cmd->wfd);
     close(cmd->efd);
 
-    if(cmd->pid)
+    if (cmd->pid)
         kill(cmd->pid, SIGKILL);
-    
-    while(cmd->list != NULL) {
-        el = cmd->list;
+
+    while (cmd->list != NULL)
+    {
+        el        = cmd->list;
         cmd->list = cmd->list->next;
 
-        if(el->wav)
+        if (el->wav)
             waveclose(el->wav);
 
         free(el);
     }
 
-    if(cmd->temp)
+    if (cmd->temp)
         free(cmd->temp);
-} 
+}

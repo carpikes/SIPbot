@@ -30,12 +30,13 @@
  * @param n Number of samples, audio data size
  * @param a e^(-2.2/F) where F is the cutoff frequency
  */
-void lowpass(int16_t *in, int16_t *out, int n, float a) {
+void lowpass(int16_t *in, int16_t *out, int n, float a)
+{
     int i;
 
-    out[0]=in[0];
-    for(i=1;i<n;i++)
-        out[i] = out[i-1] + a*(in[i] - out[i-1]);
+    out[0] = in[0];
+    for (i     = 1; i < n; i++)
+        out[i] = out[i - 1] + a * (in[i] - out[i - 1]);
 }
 
 /**
@@ -46,12 +47,13 @@ void lowpass(int16_t *in, int16_t *out, int n, float a) {
  * @param n Number of samples, audio data size
  * @param a e^(-2.2/F) where F is the cutoff frequency
  */
-void highpass(int16_t *in, int16_t *out, int n, float a) {
+void highpass(int16_t *in, int16_t *out, int n, float a)
+{
     int i;
-    out[0]=in[0];
+    out[0] = in[0];
 
-    for(i=1;i<n;i++)
-        out[i] = a * (out[i-1] + in[i] - in[i-1]);
+    for (i     = 1; i < n; i++)
+        out[i] = a * (out[i - 1] + in[i] - in[i - 1]);
 }
 
 /**
@@ -63,17 +65,18 @@ void highpass(int16_t *in, int16_t *out, int n, float a) {
  * @param in_rate input rate (e.g. 44100)
  * @param out_rate output rate (8000)
  */
-void downsample(int16_t *in, int16_t *out, 
-    int in_size, int in_rate, int out_rate) {
-    int i,j;
-    int out_step = ceil(in_rate/out_rate);
-    int out_size = in_size*(float)out_rate/in_rate;
+void downsample(int16_t *in, int16_t *out, int in_size, int in_rate,
+                int out_rate)
+{
+    int i, j;
+    int out_step = ceil(in_rate / out_rate);
+    int out_size = in_size * (float)out_rate / in_rate;
 
-    for(i=0;i<out_size;i++) {
-        out[i]=0;
-        for(j=0;j<out_step;j++) 
-            out[i] += (float) 
-                      in[(int)(i*((float)in_rate/out_rate)+j)] / out_step;
+    for (i = 0; i < out_size; i++)
+    {
+        out[i] = 0;
+        for (j = 0; j < out_step; j++)
+            out[i] += (float)in[(int)(i * ((float)in_rate / out_rate) + j)] /
+                      out_step;
     }
 }
-
