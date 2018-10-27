@@ -20,11 +20,11 @@
  * @brief Call manager
  */
 #include "call.h"
-#include "sip.h"
 #include "cmds.h"
 #include "config.h"
+#include "sip.h"
 
-#define IN_BUFSIZE  8192
+#define IN_BUFSIZE 8192
 #define RTP_SENDBUF 512
 #define RTP_RECVBUF 160
 
@@ -38,14 +38,11 @@ extern int current_calls;
 /**
  * Command table
  *
- * Each command is 4 characters long! 
+ * Each command is 4 characters long!
  */
 cmd_t commands[] = {
-    {"PLAY", cmd_play},
-    {"APND", cmd_append},
-    {"STOP", cmd_stop},
-    {"KILL", cmd_kill},
-    {NULL, NULL},
+    {"PLAY", cmd_play}, {"APND", cmd_append}, {"STOP", cmd_stop},
+    {"KILL", cmd_kill}, {NULL, NULL},
 };
 
 /**
@@ -53,15 +50,18 @@ cmd_t commands[] = {
  *
  * @param call The call
  */
-int parse_error(call_t* call) {
+int parse_error(call_t* call)
+{
     char buf[128];
     int n, len;
 
     n = read(call->exec.efd, buf, 128);
-    if(n > 0) {
+    if (n > 0)
+    {
         len = strlen(buf);
-        if(len > 0) {
-            buf[len-1] = 0;
+        if (len > 0)
+        {
+            buf[len - 1] = 0;
             len--;
         }
 
@@ -77,31 +77,37 @@ int parse_error(call_t* call) {
  * @param call The call
  * @param line Line to parse
  */
-void parse_command(call_t* call, char *line) {
-    cmd_t *cur = commands;
+void parse_command(call_t* call, char* line)
+{
+    cmd_t* cur = commands;
     char cmd[5];
-    char *args = NULL;
+    char* args = NULL;
     size_t len;
 
     len = strlen(line);
 
     /* Due to semplicity, each cmd is 4 char long */
-    if(len >= 4) {
+    if (len >= 4)
+    {
         memcpy(cmd, line, 4);
         cmd[4] = 0;
 
-        if(len > 5) {
-            if(line[4] != ' ')
+        if (len > 5)
+        {
+            if (line[4] != ' ')
                 return;
-            args = (char *) malloc(len - 5 + 1);
+            args = (char*)malloc(len - 5 + 1);
             memcpy(args, line + 5, len - 5);
-            args[len-5] = 0;
-        } 
+            args[len - 5] = 0;
+        }
 
-        while(cur->cmd != NULL) {
-            if(!strcmp(cmd, cur->cmd)) {
-                log_debug("COMMAND", "Triggering %s (%s)", cmd, (args?args:"<NULL>"));
-                
+        while (cur->cmd != NULL)
+        {
+            if (!strcmp(cmd, cur->cmd))
+            {
+                log_debug("COMMAND", "Triggering %s (%s)", cmd,
+                          (args ? args : "<NULL>"));
+
                 cur->func(call, args);
                 break;
             }
@@ -109,10 +115,10 @@ void parse_command(call_t* call, char *line) {
             cur++;
         }
 
-        if(cur->cmd == NULL)
+        if (cur->cmd == NULL)
             log_debug("COMMAND", "Unknown input: %s\n", line);
 
-        if(args)
+        if (args)
             free(args);
     }
 }
@@ -122,7 +128,8 @@ void parse_command(call_t* call, char *line) {
  *
  * @param call The call
  */
-int parse_input(call_t* call) {
+int parse_input(call_t* call)
+{
     char buf[IN_BUFSIZE];
     char line[IN_BUFSIZE];
     int i, j, n, len;
@@ -130,28 +137,34 @@ int parse_input(call_t* call) {
     memset(buf, 0, sizeof(buf));
     memset(line, 0, sizeof(line));
     n = read(call->exec.rfd, buf, IN_BUFSIZE);
-    if(n > 0) {
+    if (n > 0)
+    {
         len = strlen(buf);
 
-        if(call->exec.temp) {
+        if (call->exec.temp)
+        {
             memcpy(line, call->exec.temp, strlen(call->exec.temp));
             free(call->exec.temp);
             call->exec.temp = NULL;
         }
 
-        for(i=0,j=strlen(line);i<len && j<IN_BUFSIZE;i++) {
-            if(buf[i] == '\n') {
+        for (i = 0, j = strlen(line); i < len && j < IN_BUFSIZE; i++)
+        {
+            if (buf[i] == '\n')
+            {
                 parse_command(call, line);
                 j = 0;
                 memset(line, 0, sizeof(line));
             }
-            else if(buf[i]>=' ')
+            else if (buf[i] >= ' ')
                 line[j++] = buf[i];
         }
 
-        if(j>0 && j<IN_BUFSIZE) {
-            call->exec.temp = (char *) calloc(strlen(line),1);
-            if(!call->exec.temp) {
+        if (j > 0 && j < IN_BUFSIZE)
+        {
+            call->exec.temp = (char*)calloc(strlen(line), 1);
+            if (!call->exec.temp)
+            {
                 log_err("PARSE", "Not enough memory");
                 exit(-1);
             }
@@ -164,12 +177,13 @@ int parse_input(call_t* call) {
 
 /**
  * This function is called when socket is ready to transmit
- * a new audio frame. 
+ * a new audio frame.
  *
  * @param call The call
  */
-void call_transmit_data(call_t* call) {
-    wavlist_t *el;
+void call_transmit_data(call_t* call)
+{
+    wavlist_t* el;
     char send_buf[RTP_SENDBUF];
     int i;
 
@@ -178,23 +192,23 @@ void call_transmit_data(call_t* call) {
     /**
      * Send stream
      */
-    while((el = call->exec.list)) {
+    while ((el = call->exec.list))
+    {
         i = waveread(el->wav, send_buf, RTP_SENDBUF);
-        if(i>=0)
+        if (i >= 0)
             break;
 
         /* TODO: change these lines with wavelist_remove_head(..)*/
-        call->exec.list = el->next; 
-        if(el->wav)
+        call->exec.list = el->next;
+        if (el->wav)
             waveclose(el->wav);
         free(el);
-        if(call->exec.list == NULL) 
-            write(call->exec.wfd, "FNSH\n",5);
-        
+        if (call->exec.list == NULL)
+            write(call->exec.wfd, "FNSH\n", 5);
     }
-    
-    rtp_session_send_with_ts(call->r_session, (uint8_t*) send_buf, 
-            RTP_SENDBUF, call->send_ts);
+
+    rtp_session_send_with_ts(call->r_session, (uint8_t*)send_buf, RTP_SENDBUF,
+                             call->send_ts);
     call->send_ts += RTP_SENDBUF;
 }
 
@@ -204,18 +218,21 @@ void call_transmit_data(call_t* call) {
  *
  * @param call The call
  */
-void call_receive_data(call_t* call) {
+void call_receive_data(call_t* call)
+{
     uint8_t recv_buf[RTP_RECVBUF] = {0};
     int i;
     int must_recv_more = 0;
 
-    do {
+    do
+    {
         /* Receive a piece of data */
-        i = rtp_session_recv_with_ts(call->r_session, (uint8_t*) recv_buf, 
-                RTP_RECVBUF, call->recv_ts, &must_recv_more);
+        i = rtp_session_recv_with_ts(call->r_session, (uint8_t*)recv_buf,
+                                     RTP_RECVBUF, call->recv_ts,
+                                     &must_recv_more);
 
         /* TODO: here you can use recv_buf for your own purpose */
-    }while(must_recv_more && i>0);
+    } while (must_recv_more && i > 0);
 
     call->recv_ts += RTP_RECVBUF;
 }
@@ -226,14 +243,15 @@ void call_receive_data(call_t* call) {
  * @param call call data to free
  * @return This function returns the call next to the deleted one
  */
-call_t* call_free(call_t* call) {
+call_t* call_free(call_t* call)
+{
     call_t* next = NULL;
-    if(call->caller)
+    if (call->caller)
         free(call->caller);
-    if(call->ip)
+    if (call->ip)
         free(call->ip);
 
-    if(call->r_session != NULL)
+    if (call->r_session != NULL)
         rtp_session_destroy(call->r_session);
 
     sip_terminate_call(call->cid, call->did);
@@ -251,32 +269,37 @@ call_t* call_free(call_t* call) {
  * This function is called when SIPbot is closing
  * It frees and closes all calls.
  */
-void call_freeall(void) {
-    while(call_list != NULL)
+void call_freeall(void)
+{
+    while (call_list != NULL)
         call_list = call_free(call_list);
 }
 
 /**
  * Cycles through all calls and update their status
  */
-void call_update(void) {
+void call_update(void)
+{
     SessionSet *send_set, *recv_set;
     fd_set cmd_set;
-    int cmd_max = 0;
-    int num_socks=0, select_ret, update_list = 1;
-    time_t cur_time = time(NULL);
-    call_t* call = call_list;
+    int cmd_max   = 0;
+    int num_socks = 0, select_ret, update_list = 1;
+    time_t cur_time   = time(NULL);
+    call_t* call      = call_list;
     call_t* call_prec = NULL;
 
     send_set = session_set_new();
     recv_set = session_set_new();
     FD_ZERO(&cmd_set);
-    while(call != NULL) {
+    while (call != NULL)
+    {
         update_list = 1;
-        switch(call->status) {
+        switch (call->status)
+        {
             case CALL_RINGING:
-                if(call->ringing_timer > 0 && 
-                        cur_time-call->ringing_timer > 2) {
+                if (call->ringing_timer > 0 &&
+                    cur_time - call->ringing_timer > 2)
+                {
                     /* Ringing timeout: answer the call */
                     sip_answer_call(call);
                     call->ringing_timer = -1;
@@ -294,62 +317,74 @@ void call_update(void) {
             case CALL_CLOSED:
                 log_debug("CALL_CLOSED", "Freeing memory");
 
-                if(call_prec == NULL)
+                if (call_prec == NULL)
                     call_list = call->next;
-                else 
+                else
                     call_prec->next = call->next;
 
-                call = call_free(call); 
+                call = call_free(call);
 
                 /* call_list is already incremented */
                 update_list = 0;
                 break;
         }
 
-        if(update_list) {
+        if (update_list)
+        {
             call_prec = call;
-            call = call->next;
+            call      = call->next;
         }
     }
 
-    if(num_socks > 0) {
+    if (num_socks > 0)
+    {
         struct timeval tv;
         tv.tv_usec = 1000;
-        tv.tv_sec = 0;
+        tv.tv_sec  = 0;
         select_ret = select(cmd_max, &cmd_set, NULL, NULL, &tv);
 
-        if(select_ret > 0) {
+        if (select_ret > 0)
+        {
             call = call_list;
-            while(call != NULL) {
-                if(call->status == CALL_ACTIVE) { 
-                    if(FD_ISSET(call->exec.rfd, &cmd_set)) {
-                        if(!parse_input(call)) {
+            while (call != NULL)
+            {
+                if (call->status == CALL_ACTIVE)
+                {
+                    if (FD_ISSET(call->exec.rfd, &cmd_set))
+                    {
+                        if (!parse_input(call))
+                        {
                             log_debug("CALL_EXEC", "Program terminated");
-                            call->status=CALL_CLOSED;
+                            call->status = CALL_CLOSED;
                         }
                     }
 
-                    if(FD_ISSET(call->exec.efd, &cmd_set)) {
-                        if(!parse_error(call)) {
+                    if (FD_ISSET(call->exec.efd, &cmd_set))
+                    {
+                        if (!parse_error(call))
+                        {
                             log_debug("CALL_EXEC", "Program terminated");
-                            call->status=CALL_CLOSED;
+                            call->status = CALL_CLOSED;
                         }
                     }
                 }
-            call = call->next;
+                call = call->next;
             }
         }
 
         select_ret = session_set_select(recv_set, send_set, NULL);
 
-        if(select_ret > 0) {
+        if (select_ret > 0)
+        {
             call = call_list;
 
-            while(call != NULL) {
-                if(call->status == CALL_ACTIVE) {
-                    if(session_set_is_set(recv_set, call->r_session))
+            while (call != NULL)
+            {
+                if (call->status == CALL_ACTIVE)
+                {
+                    if (session_set_is_set(recv_set, call->r_session))
                         call_receive_data(call);
-                    if(session_set_is_set(send_set, call->r_session))
+                    if (session_set_is_set(send_set, call->r_session))
                         call_transmit_data(call);
                 }
 
@@ -369,53 +404,57 @@ void call_update(void) {
  * @param rtp_addr RTP server ip address
  * @param rtp_port RTP server port
  * @param cid eXosip Call ID
- * @param tid eXosip Transaction ID 
+ * @param tid eXosip Transaction ID
  * @param did eXosip Dialog ID
  */
-int call_new(const char* display_name, const char* rtp_addr, 
-        int rtp_port, int cid, int tid, int did) {
-    char *tmp = NULL;
-    const char *prog = config_readstring(CONFIG_PROGRAM);
-    call_t *call = NULL;
-    call = (call_t*) calloc(1, sizeof(call_t));
-    if(call == NULL) {
+int call_new(const char* display_name, const char* rtp_addr, int rtp_port,
+             int cid, int tid, int did)
+{
+    char* tmp        = NULL;
+    const char* prog = config_readstring(CONFIG_PROGRAM);
+    call_t* call     = NULL;
+    call             = (call_t*)calloc(1, sizeof(call_t));
+    if (call == NULL)
+    {
         log_err("SIP_UPDATE", "Out of memory. Exiting.");
         exit(-1);
     }
 
     call->caller = strdup(display_name);
-    call->ip = strdup(rtp_addr);
+    call->ip     = strdup(rtp_addr);
 
-    call->port = rtp_port;
-    call->cid = cid;
-    call->tid = tid;
-    call->did = did;
-    call->status = CALL_RINGING;
+    call->port          = rtp_port;
+    call->cid           = cid;
+    call->tid           = tid;
+    call->did           = did;
+    call->status        = CALL_RINGING;
     call->ringing_timer = time(NULL);
-    call->r_session = NULL;
-    call->next = NULL;
+    call->r_session     = NULL;
+    call->next          = NULL;
 
     call->send_ts = rand();
     call->recv_ts = 0;
 
-    if(spawn(prog, &call->exec) < 0) {
+    if (spawn(prog, &call->exec) < 0)
+    {
         log_debug("SIP_UPDATE", "Cannot open %s", prog);
         call_free(call);
         return 0;
     }
 
-    tmp = (char *) calloc(strlen(call->caller) + 16, 1);
+    tmp = (char*)calloc(strlen(call->caller) + 16, 1);
     sprintf(tmp, "CALL %s\n", call->caller);
     write(call->exec.wfd, tmp, strlen(tmp));
     free(tmp);
 
-    if(call_list == NULL)
+    if (call_list == NULL)
         call_list = call;
-    else {
+    else
+    {
         call_t* head = call_list;
-        while(head->next!=NULL) 
-            head=head->next;
-        head->next=call;
+        while (head->next != NULL)
+            head   = head->next;
+        head->next = call;
     }
 
     return 1;
@@ -427,16 +466,19 @@ int call_new(const char* display_name, const char* rtp_addr,
  * @param cid eXosip Conversation ID
  * @param status New status
  */
-int call_set_status(int cid, int status) {
-    call_t *call = call_list;
-    while(call != NULL) {
-        if(call->cid == cid) {
+int call_set_status(int cid, int status)
+{
+    call_t* call = call_list;
+    while (call != NULL)
+    {
+        if (call->cid == cid)
+        {
             call->status = status;
             break;
         }
         call = call->next;
     }
-    if(call != NULL)
+    if (call != NULL)
         return 1;
 
     return 0;

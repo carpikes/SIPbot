@@ -21,23 +21,27 @@
  */
 
 #include "../src/common.h"
-#include "../src/law.h"
 #include "../src/filter.h"
+#include "../src/law.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
     wavfile_t* wav;
     char buf[500];
-    printf( "******************\n"
-            "*  PCM => muLAW  *\n"
-            "******************\n");
+    printf(
+        "******************\n"
+        "*  PCM => muLAW  *\n"
+        "******************\n");
 
     wav = waveopen("out.wav");
-    if(!wav) {
+    if (!wav)
+    {
         fprintf(stderr, "Cannot open out.wav\n");
         exit(-1);
     }
 
-    while(1) {
+    while (1)
+    {
         waveread(wav, buf, 500);
     }
 
