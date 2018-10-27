@@ -40,10 +40,15 @@ extern int current_calls;
  *
  * Each command is 4 characters long!
  */
+// clang-format off
 cmd_t commands[] = {
-    {"PLAY", cmd_play}, {"APND", cmd_append}, {"STOP", cmd_stop},
-    {"KILL", cmd_kill}, {NULL, NULL},
+    {"PLAY", cmd_play},
+    {"APND", cmd_append},
+    {"STOP", cmd_stop},
+    {"KILL", cmd_kill}, 
+    {NULL, NULL},
 };
+// clang-format on
 
 /**
  * Read a stderr line from the called program
